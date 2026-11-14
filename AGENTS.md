@@ -7,7 +7,9 @@
 | Command | What it does |
 | --- | --- |
 | `npx astro dev` | Dev server. One instance only. |
-| `npm run check` | `astro check` then `astro build`. Must show 0 errors before work is called done. |
+| `npm run check` | `astro check`, `astro build`, then `npm test`. Must show 0 errors before work is called done. |
+| `npm test` | Unit tests in `tests/` (Node's runner, TypeScript stripped). |
+| `node tools/scroll-perf.mjs / --headed` | Frame times on the built site with a real GPU (run `npm run preview -- --port 4351` first). |
 | `npm run preview` | Serve the built `dist/`. Check the port is free first (`lsof -i :<port>`). |
 | `node tools/check.mjs <url>` | Console errors in normal, debug, reduced-motion, no-WebGL and offscreen runs. |
 | `node tools/idle.mjs <url>`, `node tools/entrance.mjs <url>` | Idle draw count; the opening text entrance. |
@@ -17,7 +19,9 @@ Screenshots: `node ~/Projects/portfolio/tools/screenshot.mjs "<url>?p=<progress>
 ## Where things live
 
 - `src/scripts/choreo/timeline.ts`: pure data, no imports. Every camera shot (`Shot`), part window (`PARTS`) and text switch. Change the motion here.
-- `src/scripts/walk.js`: the scene, the rig and the frame loop, ported as is from the approved look sample (v3.3). Plain JS for now; each stop moves into its own typed module (`src/scripts/three/stops/`) as it is built.
+- `src/scripts/choreo/seg.ts` (number helpers, `part()`), `choreo/flow.ts` (the monotone cubic that maps progress onto the camera curves; tested in `tests/flow.test.ts`).
+- `src/scripts/three/textures.ts` (canvas textures; `rand` is seeded, keep the call order), `three/geometry.ts` (`roundBox`, `slab`, `strip`), `src/scripts/text.ts` (the masked line rise).
+- `src/scripts/walk.js`: the scene (desk, keyboard, switch, bead), the rig and the frame loop. Still plain JS and not type-checked; each stop moves into its own typed module (`src/scripts/three/stops/`) as it is built. Imports use `.ts` extensions so Node's test runner can load them.
 - `src/pages/index.astro`: the markup. `src/styles/global.css`: tokens and layout. `src/layouts/Base.astro`: head.
 - `public/assets/`: textures. `public/_headers`: Cloudflare Pages headers with an enforced CSP (`script-src 'self'`; Astro emits the script as a file because `assetsInlineLimit` is 0).
 - `docs/sources.md`: the source for every figure shown on the page. `CREDITS.md`: asset licences.

@@ -1,13 +1,10 @@
 import * as THREE from 'three';
-import { PARTS, P0, old, RIG, TEXT_RIG } from './choreo/timeline';
-
-
-
-const E = { linear: (t) => t, in: (t) => t * t, out: (t) => 1 - (1 - t) * (1 - t), inOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2) };
-const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
-const seg = (p, a, b) => clamp((p - a) / (b - a));
-const part = (p, k, ease = 'inOut') => E[ease](seg(p, PARTS[k][0], PARTS[k][1]));
-const lerp = (a, b, t) => a + (b - a) * t;
+import { P0, old, RIG, TEXT_RIG } from './choreo/timeline.ts';
+import { clamp, seg, lerp, part } from './choreo/seg.ts';
+import { makeFlow } from './choreo/flow.ts';
+import { tex, rand, grainNormal, woodTex, blobTex, grainTile, legend } from './three/textures.ts';
+import { DISH, slab, roundBox, strip } from './three/geometry.ts';
+import { split as splitText } from './text.ts';
 
 const root = document.documentElement;
 const qs = new URLSearchParams(location.search);
@@ -34,41 +31,8 @@ if (renderer) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true; // the room is still: shadows are drawn once, then reused
 
-  /* ---------- small canvas textures (made once) ---------- */
-  const tex = (size, draw, o = {}) => {
-    const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size);
-    const t = new THREE.CanvasTexture(c); if (o.srgb) t.colorSpace = THREE.SRGBColorSpace;
-    if (o.repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(o.repeat, o.repeat); }
-    t.anisotropy = 4; return t;
-  };
-  const rand = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })(); // seeded, same grain every load
-  // Fine grain as a normal map: random heights, lightly blurred, turned into slopes.
-  const grainNormal = (size, strength) => tex(size, (g, n) => {
-    const h = new Float32Array(n * n).map(() => rand()), b = new Float32Array(n * n);
-    const at = (a, x, y) => a[((y + n) % n) * n + ((x + n) % n)];
-    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) b[y * n + x] = (at(h, x, y) * 4 + at(h, x + 1, y) + at(h, x - 1, y) + at(h, x, y + 1) + at(h, x, y - 1)) / 8;
-    const img = g.createImageData(n, n);
-    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-      const dx = (at(b, x + 1, y) - at(b, x - 1, y)) * strength, dy = (at(b, x, y + 1) - at(b, x, y - 1)) * strength;
-      const l = Math.hypot(dx, dy, 1), i = (y * n + x) * 4;
-      img.data[i] = (-dx / l * 0.5 + 0.5) * 255; img.data[i + 1] = (-dy / l * 0.5 + 0.5) * 255; img.data[i + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[i + 3] = 255;
-    }
-    g.putImageData(img, 0, 0);
-  }, { repeat: 7 });
-  const woodTex = (base, dark, repeat = 1) => tex(512, (g, n) => { // long grain streaks along u
-    g.fillStyle = base; g.fillRect(0, 0, n, n);
-    for (let i = 0; i < 90; i++) { g.fillStyle = dark; g.globalAlpha = 0.05 + rand() * 0.16; g.fillRect(0, rand() * n, n, 0.6 + rand() * 3.2); }
-    g.globalAlpha = 1;
-  }, { srgb: true, repeat });
-  const blob = tex(128, (g, n) => { // soft contact shadow
-    const r = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
-    r.addColorStop(0, 'rgba(0,0,0,0.62)'); r.addColorStop(0.55, 'rgba(0,0,0,0.3)'); r.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = r; g.fillRect(0, 0, n, n);
-  });
-  // Page grain tile (static, drawn once).
-  { const c = document.createElement('canvas'); c.width = c.height = 160; const g = c.getContext('2d'), img = g.createImageData(160, 160);
-    for (let i = 0; i < 160 * 160; i++) { const v = rand() > 0.5 ? 255 : 0; img.data.set([v, v, v, 90 * rand()], i * 4); }
-    g.putImageData(img, 0, 0); document.querySelector('.grain').style.backgroundImage = `url(${c.toDataURL()})`; }
+  const blob = blobTex();
+  document.querySelector('.grain').style.backgroundImage = `url(${grainTile()})`; // static, drawn once
 
   /* ---------- scene, light and reflections ---------- */
   const scene = new THREE.Scene();
@@ -93,70 +57,6 @@ if (renderer) {
   const rim = new THREE.DirectionalLight(0x8fa6c0, 1.1); rim.position.set(3, 4, -8); scene.add(rim);
   const fill = new THREE.DirectionalLight(0xffe2c0, 0.55); fill.position.set(7, 3, 6); scene.add(fill); // keeps the shadow side warm
   const hemi = new THREE.HemisphereLight(0x3d3731, 0x0c0b0a, 0.4); scene.add(hemi);
-
-  /* ---------- geometry helpers ---------- */
-  const rounded = (w, d, r) => {
-    const s = new THREE.Shape(), x = -w / 2, y = -d / 2;
-    s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
-    s.lineTo(x + w, y + d - r); s.quadraticCurveTo(x + w, y + d, x + w - r, y + d);
-    s.lineTo(x + r, y + d); s.quadraticCurveTo(x, y + d, x, y + d - r);
-    s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
-    return s;
-  };
-  // Weld duplicate vertices so normals come out smooth (core-only stand-in for BufferGeometryUtils.mergeVertices). Keeps the first UV seen.
-  const smooth = (g0) => {
-    const g = g0.index ? g0.toNonIndexed() : g0; if (g !== g0) g0.dispose();
-    const src = g.attributes.position, uv = g.attributes.uv, map = new Map(), verts = [], uvs = [], index = [];
-    for (let i = 0; i < src.count; i++) {
-      const key = `${src.getX(i).toFixed(4)},${src.getY(i).toFixed(4)},${src.getZ(i).toFixed(4)}`;
-      let k = map.get(key);
-      if (k === undefined) { k = verts.length / 3; map.set(key, k); verts.push(src.getX(i), src.getY(i), src.getZ(i)); if (uv) uvs.push(uv.getX(i), uv.getY(i)); }
-      index.push(k);
-    }
-    const out = new THREE.BufferGeometry();
-    out.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-    if (uv) out.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    out.setIndex(index); out.computeVertexNormals();
-    g.dispose(); return out;
-  };
-  // Extrude a rounded rect upward (+y), base at y = 0. Used for the plate.
-  const slab = (w, d, r, h, bevel) => {
-    const g = new THREE.ExtrudeGeometry(rounded(w - bevel * 2, d - bevel * 2, r), { depth: h - bevel * 2, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 4, curveSegments: 10 });
-    g.rotateX(-Math.PI / 2); g.computeBoundingBox(); g.translate(0, -g.boundingBox.min.y, 0);
-    return g;
-  };
-  // Rounded box from a subdivided cube (every edge radius r), base at y = 0, with an optional taper
-  // towards the top, a sculpted skirt and a cylindrical dish in the top face. Segments cluster at the edges.
-  const DISH = (x, hx, dish) => -dish * (1 - Math.min(1, (x / hx) ** 2));
-  const roundBox = (w, h, d, r, { taper = 0, inset, dish = 0, seg = [22, 10, 22] } = {}) => {
-    const g = new THREE.BoxGeometry(1, 1, 1, ...seg), pos = g.attributes.position;
-    const bunch = (u) => lerp(u, 0.5 * Math.sin(Math.PI * u), 0.65);
-    const hw = w / 2, hh = h / 2, hd = d / 2, ix = inset ?? taper * hw, iz = inset ?? taper * hd, hxTop = hw - ix; // inset: same slope on every width
-    const p = new THREE.Vector3(), inner = new THREE.Vector3();
-    for (let i = 0; i < pos.count; i++) {
-      p.set(bunch(pos.getX(i)) * w, bunch(pos.getY(i)) * h, bunch(pos.getZ(i)) * d);
-      inner.set(clamp(p.x, -hw + r, hw - r), clamp(p.y, -hh + r, hh - r), clamp(p.z, -hd + r, hd - r));
-      const n = p.clone().sub(inner); if (n.lengthSq() > 0) p.copy(inner).addScaledVector(n.normalize(), r);
-      const f = Math.pow((p.y + hh) / h, 1.25); // slight curve in the skirt
-      p.x *= 1 - ix * f / hw; p.z *= 1 - iz * f / hd; p.y += hh;
-      if (dish) p.y += DISH(p.x, hxTop, dish) * clamp((p.y - (h - r * 1.6)) / (r * 1.6));
-      pos.setXYZ(i, p.x, p.y, p.z);
-    }
-    return smooth(g);
-  };
-  // A bent strip of spring metal: a 2D centre line, thickened and extruded along z.
-  const strip = (pts, t, depth) => {
-    const c = new THREE.CatmullRomCurve3(pts.map(([x, y]) => new THREE.Vector3(x, y, 0)), false, 'centripetal').getSpacedPoints(48);
-    const L = [], R = [];
-    c.forEach((q, i) => { const a = c[Math.max(0, i - 1)], b = c[Math.min(c.length - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy);
-      L.push(new THREE.Vector2(q.x - dy / l * t / 2, q.y + dx / l * t / 2)); R.push(new THREE.Vector2(q.x + dy / l * t / 2, q.y - dx / l * t / 2)); });
-    const g = new THREE.ExtrudeGeometry(new THREE.Shape([...L, ...R.reverse()]), { depth, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.006, bevelSegments: 2, curveSegments: 4 });
-    g.translate(0, 0, -depth / 2); return g;
-  };
-  const legend = (ch, ink) => tex(256, (g, n) => {
-    g.clearRect(0, 0, n, n); g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = `500 ${n * 0.5}px "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif`; g.fillText(ch, n / 2, n * 0.53);
-  }, { srgb: true });
 
   /* ---------- materials ---------- */
   const pbt = grainNormal(128, 2.2);
@@ -387,25 +287,13 @@ if (renderer) {
   const path = new THREE.CatmullRomCurve3(RIG.map((s) => new THREE.Vector3(...s.pos)), false, 'centripetal');
   const aim = new THREE.CatmullRomCurve3(RIG.map((s) => new THREE.Vector3(...s.target)), false, 'centripetal');
   const lens = new THREE.CatmullRomCurve3(RIG.map((s) => new THREE.Vector3(s.fov, s.roll, 0)), false, 'centripetal');
-  // v3.2: one monotone cubic (PCHIP) maps progress to a place on the curves, so speed never jumps at a shot;
-  // the camera flows through every shot instead of easing in and out of each one.
-  const knotT = RIG.map((s) => s.t), N1 = RIG.length - 1;
-  const knotM = knotT.map((t, k) => {
-    const d = (j) => 1 / (knotT[j + 1] - knotT[j]), h = (j) => knotT[j + 1] - knotT[j];
-    if (k === 0) return d(0); if (k === N1) return d(N1 - 1);
-    const w1 = 2 * h(k) + h(k - 1), w2 = h(k) + 2 * h(k - 1);
-    return (w1 + w2) / (w1 / d(k - 1) + w2 / d(k));
-  });
-  const flow = (p, i) => { // place along the curves, 0..N1
-    const h = knotT[i + 1] - knotT[i], x = seg(p, knotT[i], knotT[i + 1]), x2 = x * x, x3 = x2 * x;
-    return (2 * x3 - 3 * x2 + 1) * i + (x3 - 2 * x2 + x) * h * knotM[i] + (-2 * x3 + 3 * x2) * (i + 1) + (x3 - x2) * h * knotM[i + 1];
-  };
+  // One monotone cubic through every shot's t: speed never jumps at a shot (see choreo/flow.ts).
+  const flow = makeFlow(RIG.map((s) => s.t));
   const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(), lensV = new THREE.Vector3();
   let segName = '', W = 1, H = 1;
   const pointer = { x: 0, y: 0, sx: 0, sy: 0 };
   function rig(p, now) {
-    let i = 0; while (i < RIG.length - 2 && p >= RIG[i + 1].t) i++;
-    const a = RIG[i], b = RIG[i + 1], u = clamp(flow(p, i) / N1);
+    const i = flow.segment(p), a = RIG[i], b = RIG[i + 1], u = flow.at(p);
     segName = `${a.id} > ${b.id}`;
     path.getPoint(u, camPos); aim.getPoint(u, camTgt); lens.getPoint(u, lensV);
     const aspect = W / H;
@@ -519,62 +407,15 @@ if (renderer) {
 
   /* ---------- text: masked line rise; one italic phrase per headline survives the split ---------- */
   const groups = [...document.querySelectorAll('.group')];
-  // Words as runs of { t, it } pieces, so "press" + "." stay one word with only the first piece in italic.
-  const wordsOf = (node, it = false, out = [], st = { open: false }) => {
-    node.childNodes.forEach((n) => {
-      if (n.nodeType === 3) n.textContent.split(/(\s+)/).forEach((t) => {
-        if (!t) return;
-        if (/^\s+$/.test(t)) { st.open = false; return; }
-        if (st.open) out.at(-1).push({ t, it }); else out.push([{ t, it }]);
-        st.open = true;
-      });
-      else if (n.nodeType === 1) wordsOf(n, it || n.tagName === 'EM', out, st);
-    });
-    return out;
-  };
-  const putWord = (parent, word, space) => word.forEach(({ t, it }, i) => {
-    const s = t + (space && i === word.length - 1 ? ' ' : '');
-    if (it) { const e = document.createElement('em'); e.textContent = s; parent.append(e); } else parent.append(s);
-  });
-  function split() {
-    groups.forEach((g) => {
-      let n = 0;
-      g.querySelectorAll('[data-split]').forEach((el) => {
-        const tpl = document.createElement('template');
-        tpl.innerHTML = el.dataset.html ?? (el.dataset.html = el.innerHTML.trim());
-        const words = wordsOf(tpl.content);
-        el.textContent = '';
-        const spans = words.map((w) => { const s = document.createElement('span'); putWord(s, w, true); el.append(s); return s; });
-        const lines = [];
-        spans.forEach((s, i) => { const top = s.offsetTop; const L = lines.at(-1); if (L && Math.abs(L.top - top) < 4) L.w.push(words[i]); else lines.push({ top, w: [words[i]] }); });
-        el.textContent = '';
-        el.setAttribute('aria-label', words.map((w) => w.map((x) => x.t).join('')).join(' '));
-        lines.forEach((L) => {
-          const m = document.createElement('span'); m.className = 'mask'; m.setAttribute('aria-hidden', 'true');
-          const l = document.createElement('span'); l.className = 'line'; l.style.setProperty('--i', n++);
-          L.w.forEach((w, k) => putWord(l, w, k < L.w.length - 1));
-          m.append(l); el.append(m);
-        });
-      });
-    });
-  }
-  let textIdx = -1, inRoom = true;
+  let textIdx = -1;
   const stopEls = [...document.querySelectorAll('.stops li')];
-  document.querySelectorAll('.deeper').forEach((d) => d.addEventListener('toggle', fitPlate));
-  const panel = document.querySelector('.panel'), plateBg = document.querySelector('.plate-bg');
-  function fitPlate() { // the plate shrinks to the active group (transform only); the panel box keeps the tallest
-    const g = groups[textIdx]; if (!g) return;
-    const cs = getComputedStyle(panel), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-    plateBg.style.transform = `scaleY(${((g.offsetHeight + pad) / panel.offsetHeight).toFixed(4)})`;
-    plateBg.style.opacity = '1'; // the desk is busy under the type, so the plate stays
-  }
+  const split = () => splitText(groups);
   function setText(p) {
     let idx = 0; TEXT_RIG.forEach(([, t], i) => { if (p >= t) idx = i; });
     if (textIdx === -2 || idx === textIdx) return; textIdx = idx;
     groups.forEach((g, i) => { g.dataset.state = i === idx ? 'on' : i < idx ? 'after' : 'before'; g.inert = i !== idx; });
     const here = idx === 2 ? 'switch' : 'key'; let past = true;
     stopEls.forEach((li) => { const cur = li.dataset.stop === here; if (cur) past = false; li.toggleAttribute('aria-current', cur); if (cur) li.setAttribute('aria-current', 'step'); li.toggleAttribute('data-past', past && !cur); });
-    fitPlate();
   }
   let shut = null;
   const setShut = (p) => { const s = p >= 0.9; if (s !== shut) { shut = s; root.classList.toggle('shut', s); } };
@@ -622,7 +463,6 @@ if (renderer) {
     if (!reduced) bar.style.transform = `scaleX(${sp.toFixed(4)})`;
     if (!reduced) setText(sp);
     const op = old(sp);
-    if ((sp < 0.12) !== inRoom) { inRoom = sp < 0.12; fitPlate(); }
     setShut(op);
     const dist = rig(sp, now);
     trailLive = pose(op, now, dist);
