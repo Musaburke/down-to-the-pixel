@@ -1,0 +1,64 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base>
+<div class="bar" aria-hidden="true"></div>
+<nav class="nav" aria-label="Site"><a class="pill" href="#top">Down to the pixel</a></nav>
+
+<main id="top">
+  <section class="walk" aria-label="One key press, followed inward">
+    <div class="stage">
+      <canvas aria-hidden="true"></canvas>
+      <div class="veil vignette" aria-hidden="true"></div>
+      <div class="veil grain" aria-hidden="true"></div>
+      <div class="veil scrim" aria-hidden="true"></div>
+      <div class="notes" aria-hidden="true">
+        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <span class="note">The stem</span>
+        <span class="note">The spring, 45 cN to press</span>
+        <span class="note">Contacts touch at 2 mm</span>
+      </div>
+      <div class="gauge" aria-hidden="true">
+        <svg><line/><line/><line/><line/><circle r="4.5"/></svg>
+        <span class="note">At rest</span>
+        <span class="note">Registers at 2 mm</span>
+        <span class="note">4 mm all the way down</span>
+      </div>
+      <ol class="stops" aria-label="The six stops of the walkthrough">
+        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li>The cable</li><li>The processor</li><li>Graphics</li><li>The pixel</li>
+      </ol>
+      <div class="panel">
+        <div class="plate-bg" aria-hidden="true"></div>
+        <div class="group" data-stop="hero">
+          <h1 data-split>Down to the <em>pixel</em></h1>
+          <p data-split>Follow one key press from your fingertip to a single lit pixel.</p>
+        </div>
+        <div class="group" data-stop="key">
+          <h2 data-split>It starts with a <em>press</em>.</h2>
+          <p data-split>Pressing a key pushes it down. That small movement is the whole input.</p>
+          <details class="deeper"><summary>Go deeper</summary><p>These figures are for one common switch, the CHERRY MX Red. The key travels 4 mm all the way down, but the press registers at 2 mm, halfway. The rest of the travel is extra room before the key stops.</p></details>
+        </div>
+        <div class="group" data-stop="switch">
+          <h2 data-split>The switch closes <em>a circuit</em>.</h2>
+          <p data-split>Under the cap, two metal contacts are held apart by a spring. Press down and they touch, and a signal can flow.</p>
+          <details class="deeper"><summary>Go deeper</summary><p>This is a linear switch: no bump or click on the way down. The spring pushes back with 30 cN at the start and 100 cN at the bottom. Once the contacts touch, the chip inside the keyboard sees the closed circuit and reports that key.</p></details>
+          <p class="closed">Circuit closed</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="next">
+    <h2>Next, <em>the cable</em>.</h2>
+    <p>From here the signal leaves the keyboard. The full walkthrough follows it to the screen.</p>
+    <a class="quiet" href="#top">Back to the key</a>
+  </section>
+</main>
+<footer class="foot">
+  <span>A look sample: two of the six stops.</span>
+  <a href="#top">Back to the top</a>
+</footer>
+</Base>
+
+<script>
+  import '../scripts/walk.js';
+</script>

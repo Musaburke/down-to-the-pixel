@@ -1,0 +1,12 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ channel: 'chrome' });
+const pg = await b.newPage({ viewport: { width: 1440, height: 900 } });
+await pg.goto((/^https?:/.test(process.argv[2]) ? process.argv[2] : 'file://' + process.argv[2]), { waitUntil: 'networkidle' });
+await pg.waitForTimeout(800);
+const count = (ms) => pg.evaluate((ms) => new Promise((r) => { const gl = document.querySelector('canvas').getContext('webgl2'); let c = 0, f = 0; const o = gl.drawElements.bind(gl), o2 = gl.clear.bind(gl);
+  gl.drawElements = (...a) => { c++; return o(...a); }; gl.clear = (...a) => { f++; return o2(...a); }; setTimeout(() => r({ calls: c, frames: f }), ms); }), ms);
+console.log('idle at hero, 2s:', await count(2000));
+await pg.evaluate(() => { const s = document.createElement('div'); s.style.height = '3000px'; document.querySelector('main').append(s); scrollTo(0, document.body.scrollHeight); });
+await pg.waitForTimeout(500);
+console.log('offscreen, 2s:', await count(2000));
+await b.close();

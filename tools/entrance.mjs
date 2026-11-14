@@ -1,0 +1,10 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ channel: 'chrome' });
+const pg = await b.newPage({ viewport: { width: 1440, height: 900 } });
+const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); pg.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
+await pg.goto((/^https?:/.test(process.argv[2]) ? process.argv[2] : 'file://' + process.argv[2]), { waitUntil: 'networkidle' });
+const ty = () => pg.evaluate(() => [...document.querySelectorAll('[data-stop=hero] .line')].map((l) => new DOMMatrix(getComputedStyle(l).transform).m42.toFixed(0)).join(','));
+console.log('hero line Y soon after load:', await ty());
+await pg.waitForTimeout(1500);
+console.log('hero line Y after 1.5s:', await ty(), 'errors:', errs.length ? errs : 'none');
+await b.close();
