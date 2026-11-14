@@ -25,7 +25,7 @@ Screenshots: `node ~/Projects/portfolio/tools/screenshot.mjs "<url>?p=<progress>
 
 ## Approved, do not change without asking Musa
 
-- Look: warm carbon `#0c0c0b`, ink `#f9f5ef`, gold `#ae9357`; Instrument Serif headings with one italic phrase, Schibsted Grotesk body. Calm coffee, gold and cream.
+- Look: warm carbon `#0c0c0b`, ink `#f9f5ef`, gold `#ae9357`; Instrument Serif headings with one italic phrase, Schibsted Grotesk body, both self-hosted in `public/fonts/`. Calm coffee, gold and cream.
 - The opening: the full keyboard on an oak desk, one warm lamp off frame, everything else falls to dark. No room.
 - Words sit on a soft shade (`.scrim`), never on a box.
 - Motion must flow like water: the camera reads one monotone cubic through every shot (no speed jumps), and scroll follows a critically damped spring (`SMOOTH` 0.34 s). Nothing snappy.

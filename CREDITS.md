@@ -1,6 +1,9 @@
 # Credits
 
 - Desk texture: Oak Veneer 01 by Jenelle van Heerden, Poly Haven, CC0. https://polyhaven.com/a/oak_veneer_01
-- Three.js (MIT). Instrument Serif and Schibsted Grotesk (SIL Open Font License), served by Google Fonts.
+- Three.js (MIT).
+- Fonts, self-hosted in `public/fonts/` (latin subset, downloaded from Google Fonts on 14 Nov 2026), both under the SIL Open Font License 1.1 (https://openfontlicense.org):
+  - Instrument Serif by Rodrigo Fuenzalida and Jordan Egstad. https://fonts.google.com/specimen/Instrument+Serif
+  - Schibsted Grotesk by Bakken & Bæck and Henrik Kongsvoll. https://fonts.google.com/specimen/Schibsted+Grotesk
 
 Every figure on the page and its source is in `docs/sources.md`.
