@@ -9,6 +9,7 @@ import Base from '../layouts/Base.astro';
   <section class="walk" aria-label="One key press, followed inward">
     <div class="stage">
       <canvas aria-hidden="true"></canvas>
+      <div class="veil flash" aria-hidden="true"></div>
       <div class="veil vignette" aria-hidden="true"></div>
       <div class="veil grain" aria-hidden="true"></div>
       <div class="veil scrim" aria-hidden="true"></div>
@@ -31,6 +32,12 @@ import Base from '../layouts/Base.astro';
         <span class="note">The silicon, lit where the code is read</span>
         <span class="note">Capacitors, steadying its power</span>
       </div>
+      <div class="notes gfx-notes" aria-hidden="true">
+        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <span class="note">The outline, from the font</span>
+        <span class="note">A grid of pixels</span>
+        <span class="note">An edge pixel, partly lit</span>
+      </div>
       <div class="gauge" aria-hidden="true">
         <svg><line/><line/><line/><line/><circle r="4.5"/></svg>
         <span class="note">At rest</span>
@@ -38,7 +45,7 @@ import Base from '../layouts/Base.astro';
         <span class="note">4 mm all the way down</span>
       </div>
       <ol class="stops" aria-label="The six stops of the walkthrough">
-        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li data-stop="cable">The cable</li><li data-stop="processor">The processor</li><li>Graphics</li><li>The pixel</li>
+        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li data-stop="cable">The cable</li><li data-stop="processor">The processor</li><li data-stop="graphics">Graphics</li><li>The pixel</li>
       </ol>
       <div class="panel">
         <div class="group" data-stop="hero">
@@ -66,17 +73,22 @@ import Base from '../layouts/Base.astro';
           <p data-split>On the computer's main board, the message runs along thin copper tracks to the processor. Under its metal lid is a sliver of silicon covered in switches far too small to see.</p>
           <details class="deeper"><summary>Go deeper</summary><dl><div><dt>A tap on the shoulder</dt><dd>When the message arrives, the processor pauses what it is doing for a moment to deal with it, then goes back to its other work.</dd></div><div><dt>From code to letter</dt><dd>A small program, the keyboard driver, reads the key's code. The system looks it up in your keyboard layout and hands the letter to the program you are typing into.</dd></div><div><dt>Switches all the way down</dt><dd>The silicon is covered in transistors: switches like the one under the key, only far smaller and with no moving parts. Reading your key press is these switches turning on and off in patterns.</dd></div></dl></details>
         </div>
+        <div class="group" data-stop="gfx">
+          <h2 data-split>Drawn in <em>pixels</em>.</h2>
+          <p data-split>The graphics processor, often part of the same chip, takes the letter's shape from the font and lays a grid of pixels over it. Each pixel is filled by how much of the shape covers it.</p>
+          <details class="deeper"><summary>Go deeper</summary><dl><div><dt>A shape, not a picture</dt><dd>A font stores each letter as an outline: points joined by straight lines and curves. That is why the same letter stays sharp at any size.</dd></div><div><dt>Softer edges</dt><dd>A pixel the edge only half covers gets a shade in between. Your eye reads those in-between shades as a smoother edge than the grid could draw on its own.</dd></div><div><dt>Kept in memory</dt><dd>The finished picture is held in memory as a grid of values, one for each pixel, and sent to the screen many times a second.</dd></div></dl></details>
+        </div>
       </div>
     </div>
   </section>
   <section class="next">
-    <h2>Next, <em>the graphics</em>.</h2>
-    <p>From here the letter is drawn. The full walkthrough follows it to the screen.</p>
+    <h2>Next, <em>the pixel</em>.</h2>
+    <p>From here the finished picture goes to the screen, and one of these pixels lights up.</p>
     <a class="quiet" href="#top">Back to the key</a>
   </section>
 </main>
 <footer class="foot">
-  <span>A look sample: four of the six stops.</span>
+  <span>A look sample: five of the six stops.</span>
   <a href="#top">Back to the top</a>
 </footer>
 </Base>

@@ -23,7 +23,7 @@
   --step-hero: clamp(52px, 5vw, 72px);
   --step-head: clamp(36px, 3.3vw, 52px);
   --step-body: clamp(17px, 1.2vw, 19px);
-  --walk: 650vh;       /* total height (pinned travel = walk - 100vh): 550vh. The opening and the approved shots keep their 250vh; the cable and the processor have 150vh each */
+  --walk: 800vh;       /* total height (pinned travel = walk - 100vh): 700vh. The opening and the approved shots keep their 250vh; the cable, the processor and the graphics have 150vh each */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --gutter-l: max(16px, env(safe-area-inset-left, 0px));
   --gutter-r: max(16px, env(safe-area-inset-right, 0px));
@@ -67,6 +67,7 @@ p { max-width: 34ch; text-wrap: pretty; }
 .pinned .stage canvas, .still .stage canvas { transition: none; }
 /* Stage atmosphere: a static vignette and a fine grain tile, both still. */
 .live .veil { display: block; position: absolute; inset: 0; pointer-events: none; }
+.flash { background: #c99350; opacity: 0; } /* the die's light filling the frame as the camera passes through it */
 .vignette { background: radial-gradient(ellipse 85% 75% at 62% 48%, transparent 55%, rgba(0, 0, 0, 0.42) 100%); }
 .grain { opacity: 0.07; background-size: 160px 160px; }
 .live .panel { position: absolute; left: max(32px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%); width: min(500px, 38vw); padding: 36px 36px 40px; gap: 0; }
@@ -135,6 +136,7 @@ p { max-width: 34ch; text-wrap: pretty; }
   .scrim { background: linear-gradient(0deg, rgb(12 12 11 / 0.92) 0%, rgb(12 12 11 / 0.8) 26%, rgb(12 12 11 / 0.4) 42%, transparent 58%); }
   .live .notes { display: none; }
   .live .stage:has(.group[data-state="on"] .deeper[open]) .scrim { background: linear-gradient(0deg, rgb(12 12 11 / 0.95) 0%, rgb(12 12 11 / 0.88) 55%, rgb(12 12 11 / 0.5) 72%, transparent 86%); } /* opened, the words climb higher, so the shade does too */
+  .live .group:has(.deeper[open]) > p:not(.closed) { display: none; } /* on a phone the points stand in for the lead line, so the scene above stays in view */
   .live .deeper dl { max-height: 34svh; overflow-y: auto; overscroll-behavior: contain; gap: 14px; } /* the scene above stays in view */
   .deeper dt { font-size: 20px; }
 }

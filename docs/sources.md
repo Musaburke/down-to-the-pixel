@@ -31,6 +31,10 @@ The wire colours in the cutaway follow the site's palette, not the USB colour co
 
 No figures. The copy says the keyboard driver reads the key's code and the system maps it to a letter through the layout before passing it to the program (standard operating-system keyboard handling). The die is drawn, not a real chip's layout, and is not labelled as cores. The capacitors on the package are decoupling capacitors, which steady the chip's supply.
 
+## The graphics (stop 5)
+
+No figures. Claims, all standard: the graphics processor is often part of the same chip as the main processor (integrated graphics); fonts store letters as outlines of points joined by lines and curves (TrueType/OpenType), so they scale cleanly; text is rasterised onto a pixel grid with partly covered edge pixels given in-between shades (anti-aliasing); the finished image is held in memory, one value per pixel (a frame buffer), and sent to the display repeatedly ("many times a second", no rate given). The drawing on the page is the browser's own anti-aliased rendering of the M in Schibsted Grotesk on a 20 x 20 grid, so the partly lit pixels are real coverage values, not painted. Its outline is traced from the same glyph; the studs mark the traced corners, not the font file's stored points.
+
 ## "Go deeper" points (all stops)
 
 No new figures; the 2 mm, 4 mm, 30 cN and 100 cN come from the CHERRY table above. The other claims are general, standard behaviour:

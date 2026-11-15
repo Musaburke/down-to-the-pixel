@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu } from './choreo/timeline.ts';
+import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx } from './choreo/timeline.ts';
 import { clamp, seg, lerp, part } from './choreo/seg.ts';
 import { makeFlow } from './choreo/flow.ts';
 import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from './three/textures.ts';
@@ -7,7 +7,8 @@ import { roundBox, strip, boxUV } from './three/geometry.ts';
 import { DESK_Y, BOARD, CAP, capGeo, decalGeo, sculpt, buildBoard } from './three/stops/board.ts';
 import { buildCorner } from './three/stops/corner.ts';
 import { buildCable } from './three/stops/cable.ts';
-import { buildCpu, CHIP } from './three/stops/cpu.ts';
+import { buildCpu, CHIP, BOARD_Y } from './three/stops/cpu.ts';
+import { buildGfx, DRAW } from './three/stops/gfx.ts';
 import { split as splitText } from './text.ts';
 
 const root = document.documentElement;
@@ -245,6 +246,7 @@ if (renderer) {
     path.getPoint(u, camPos); aim.getPoint(u, camTgt); lens.getPoint(u, lensV);
     const aspect = W / H;
     if (aspect < 1) camPos.sub(camTgt).multiplyScalar(1 + (1 - aspect) * 1.5 * seg(pre(p), 0.13, P0)).add(camTgt); // portrait: step back to fit
+    if (aspect < 1 && p > inGfx(0.215)) camPos.y = Math.min(camPos.y, BOARD_Y - 0.6); // ...but never back up through the board once the flash has carried it below
     if (!reduced) {
       const drift = 1 - seg(old(pre(p)), 0.04, 0.16); // hero only: slow drift
       camPos.x += Math.sin(now * 0.00021) * 0.35 * drift; camPos.y += Math.sin(now * 0.00017) * 0.18 * drift;
@@ -270,7 +272,10 @@ if (renderer) {
   const cable = buildCable({ sleeve: sleeveMat, wood: plugWood, brass: physical({ color: 0xd2bd8f, metalness: 0.7, roughness: 0.4, envMapIntensity: 2, normalMap: pbt, normalScale: new THREE.Vector2(0.03, 0.03) }) }); scene.add(cable.group); cable.group.visible = false;
   const cableRim = new THREE.DirectionalLight(0xffd2a0, 0); cableRim.position.set(7, -6, -11); cableRim.target.position.set(0, -14, 0); scene.add(cableRim, cableRim.target); // warm edge light from behind, for the lead only
   const cpu = buildCpu(); scene.add(cpu.group); cpu.group.visible = false;
-  const cpuKey = new THREE.SpotLight(0xffd3a6, 0, 0, 0.55, 1, 2); cpuKey.position.set(CHIP.x - 5, CHIP.y + 8, CHIP.z - 6); cpuKey.target.position.copy(CHIP); scene.add(cpuKey, cpuKey.target); // a warm key from behind and left of the processor: a pool of light that falls off, its glare kept out of the camera's line
+  const gfx = buildGfx(); scene.add(gfx.group); gfx.group.visible = false;
+  const flashEl = document.querySelector('.flash'); let flashOn = -1;
+  const keyAtCpu = new THREE.Vector3(CHIP.x - 5, CHIP.y + 8, CHIP.z - 6), keyAtGfx = new THREE.Vector3(DRAW.x - 5, DRAW.y + 8.5, DRAW.z - 6.5); // the processor's key light goes down with the camera, hidden by the flash
+  const cpuKey = new THREE.SpotLight(0xffd3a6, 0, 0, 0.55, 1, 2); cpuKey.position.copy(keyAtCpu); cpuKey.target.position.copy(CHIP); scene.add(cpuKey, cpuKey.target); // a warm key from behind and left of the processor: a pool of light that falls off, its glare kept out of the camera's line
   const cpart = (k, ease = 'inOut') => { const [a, b] = CABLE_PARTS[k], x = seg(fullP, a, b); return ease === 'linear' ? x : x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
   let fullP = 0;
 
@@ -318,18 +323,26 @@ if (renderer) {
       }
       cable.setFlow(ride * 0.5 + (reduced || pinnedP !== null ? 0 : now * 0.000035), seg(fullP, CABLE_PARTS.ride[0], CABLE_PARTS.ride[0] + 0.06));
     } else cable.setFlow(0, 0);
-    cable.group.visible = fullP > SPAN + 0.005;
-    cpu.group.visible = fullP > CABLE_END - 0.05;
+    if (fullP > GFX_PARTS.flash[0]) { // stop 5: through the die with the camera, then the bead is the pen that draws the outline
+      gfx.penAt(seg(fullP, ...GFX_PARTS.draw), v1); beadAt.lerp(v1, THREE.MathUtils.smoothstep(fullP, inGfx(0.2), inGfx(0.34)));
+    }
+    cable.group.visible = fullP > SPAN + 0.005 && fullP < inCpu(0.6);
+    cpu.group.visible = fullP > CABLE_END - 0.05 && camPos.y > BOARD_Y - 0.3; // gone once the camera is through the board
+    gfx.group.visible = fullP > inGfx(0.12);
+    if (gfx.group.visible) gfx.set(seg(fullP, ...GFX_PARTS.draw), seg(fullP, ...GFX_PARTS.grid), seg(fullP, ...GFX_PARTS.fill));
+    const fl = reduced ? 0 : Math.pow(Math.sin(Math.PI * seg(fullP, ...GFX_PARTS.flash)), 2) * 0.92;
+    if (Math.abs(fl - flashOn) > 0.002) { flashEl.style.opacity = fl.toFixed(3); flashOn = fl; }
     if (cpu.group.visible) cpu.set(seg(fullP, ...CPU_PARTS.lid), seg(fullP, ...CPU_PARTS.wave), seg(fullP, ...CPU_PARTS.tracks) * 0.6 + (reduced || pinnedP !== null ? 0 : now * 0.000035), seg(fullP, CPU_PARTS.tracks[0], CPU_PARTS.tracks[0] + 0.03)); cableRim.intensity = 2.4 * seg(fullP, SPAN, SPAN + 0.08);
     const shimmer = reduced ? 1 : 1 + Math.sin(now * 0.004) * 0.05 + Math.sin(now * 0.0113) * 0.03;
     const flare = 1 + 0.6 * Math.sin(Math.PI * seg(p, 0.88, 0.97));
     const size = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.1 * shimmer * flare;
-    bead.position.copy(beadAt); bead.scale.setScalar(size);
+    const penUp = 1 - seg(fullP, inGfx(0.6), inGfx(0.7)); // the pen lifts away as the pixels fill
+    bead.position.copy(beadAt); bead.scale.setScalar(size * penUp);
     let moving = false;
     trail.forEach((s, i) => {
       const lead = i ? trail[i - 1].position : beadAt;
       if (pinnedP !== null || reduced) s.position.copy(beadAt); else s.position.lerp(lead, 0.42);
-      s.scale.setScalar(size * (0.62 - i * 0.035));
+      s.scale.setScalar(size * (0.62 - i * 0.035) * penUp);
       if (s.position.distanceToSquared(lead) > 1e-7) moving = true;
     });
     return moving;
@@ -386,10 +399,13 @@ if (renderer) {
   };
   const cableLabels = labels('.cable-notes', [[-110, -40, -1], [120, -30, 1], [120, 40, 1], [110, 30, 1]]);
   const cpuLabels = labels('.cpu-notes', [[-200, -150, -1], [-150, 130, -1], [130, 110, 1]]);
+  const gfxLabels = labels('.gfx-notes', [[-130, -60, -1], [10, 80, 1], [-10, -170, -1]]); // the later two in the dark below and above the plate
   function annotateLater() {
     cableLabels(cpart('notes', 'linear') * (1 - seg(fullP, CABLE_END - 0.03, CABLE_END)), cable.anchors);
     const lidK = seg(fullP, ...CPU_PARTS.lid);
-    cpuLabels(seg(fullP, ...CPU_PARTS.notes), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0.15, 0.4) : i === 1 ? seg(lidK, 0.7, 1) : 1)); // the lid's label leaves with it; the die's waits for it to show
+    cpuLabels(seg(fullP, ...CPU_PARTS.notes) * (1 - seg(fullP, inGfx(0.1), inGfx(0.18))), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0.15, 0.4) : i === 1 ? seg(lidK, 0.7, 1) : 1)); // the lid's label leaves with it; the die's waits for it to show
+    const fill = seg(fullP, ...GFX_PARTS.fill);
+    gfxLabels(seg(fullP, ...GFX_PARTS.notes), gfx.anchors, (i) => (i === 0 ? 1 - seg(fill, 0.3, 0.6) : i === 1 ? seg(fullP, ...GFX_PARTS.grid) : seg(fill, 0.75, 1))); // each label arrives with its part
   }
 
   const gauge = document.querySelector('.gauge'), gaugeEls = [...gauge.querySelectorAll('.note')];
@@ -417,7 +433,7 @@ if (renderer) {
     let idx = 0; TEXT_RIG.forEach(([, t], i) => { if (p >= t) idx = i; });
     if (textIdx === -2 || idx === textIdx) return; textIdx = idx;
     groups.forEach((g, i) => { g.dataset.state = i === idx ? 'on' : i < idx ? 'after' : 'before'; g.inert = i !== idx; });
-    const here = ['key', 'key', 'switch', 'cable', 'processor'][idx]; let past = true;
+    const here = ['key', 'key', 'switch', 'cable', 'processor', 'graphics'][idx]; let past = true;
     stopEls.forEach((li) => { const cur = li.dataset.stop === here; if (cur) past = false; li.toggleAttribute('aria-current', cur); if (cur) li.setAttribute('aria-current', 'step'); li.toggleAttribute('data-past', past && !cur); });
   }
   let shut = null;
@@ -477,6 +493,7 @@ if (renderer) {
     corner.setLight(r, now, reduced || pinnedP !== null); corner.group.visible = pre(sp) < P0 + 0.02; // past the hero the fog has closed over the corner
     const chipLit = seg(sp, CABLE_END, inCpu(0.3)); // on the board, the even studio light gives way to the processor's own key
     cpuKey.intensity = 260 * chipLit;
+    const down = seg(sp, inGfx(0.2), inGfx(0.3)); cpuKey.position.lerpVectors(keyAtCpu, keyAtGfx, down); cpuKey.target.position.lerpVectors(CHIP, DRAW, down); cpuKey.target.updateMatrixWorld();
     key.intensity = 2.6 * (1 - r) * (1 - 0.55 * chipLit); fill.intensity = 0.55 * (1 - r) * (1 - 0.4 * chipLit); rim.intensity = 1.1 * (1 - 0.8 * r) * (1 - 0.85 * chipLit); hemi.intensity = (0.4 - 0.1 * r) * (1 - 0.5 * chipLit);
     scene.environmentIntensity = 1 - 0.45 * r;
     renderer.render(scene, camera);
@@ -504,18 +521,18 @@ if (renderer) {
   // Shaders for the later stops compile in the background now, so the first scroll into them never stalls on it.
   // Their textures go up to the GPU too, one a frame, or the first frame that draws them stalls on the upload.
   const uploads = new Set();
-  [cable.group, cpu.group].forEach((g) => g.traverse((o) => [o.material].flat().forEach((m) => m && Object.values(m).forEach((v) => { if (v?.isTexture) uploads.add(v); }))));
+  [cable.group, cpu.group, gfx.group].forEach((g) => g.traverse((o) => [o.material].flat().forEach((m) => m && Object.values(m).forEach((v) => { if (v?.isTexture) uploads.add(v); }))));
   const queue = [...uploads], upload = () => { const t = queue.shift(); if (!t) return; renderer.initTexture(t); requestAnimationFrame(upload); };
   // Compiling is not enough on every backend (ANGLE on Metal builds each pipeline at its first draw), so once they are
   // compiled every part is drawn once, culling off, and the real frame is drawn straight over it in the same task.
   const warm = () => {
     const culled = [];
-    [cable.group, cpu.group].forEach((g) => { g.visible = true; g.traverse((o) => { if (o.isMesh && o.frustumCulled) { culled.push(o); o.frustumCulled = false; } }); });
+    [cable.group, cpu.group, gfx.group].forEach((g) => { g.visible = true; g.traverse((o) => { if (o.isMesh && o.frustumCulled) { culled.push(o); o.frustumCulled = false; } }); });
     renderer.render(scene, camera);
     culled.forEach((o) => { o.frustumCulled = true; });
-    cable.group.visible = fullP > SPAN + 0.005; cpu.group.visible = fullP > CABLE_END - 0.05; renderer.render(scene, camera); // as pose() left them
+    cable.group.visible = fullP > SPAN + 0.005 && fullP < inCpu(0.6); cpu.group.visible = fullP > CABLE_END - 0.05 && camPos.y > BOARD_Y - 0.3; gfx.group.visible = fullP > inGfx(0.12); renderer.render(scene, camera); // as pose() left them
   };
-  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = true; const done = () => { cable.group.visible = cpu.group.visible = false; dirty = true; requestAnimationFrame(() => { warm(); upload(); }); };
+  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = gfx.group.visible = true; const done = () => { cable.group.visible = cpu.group.visible = gfx.group.visible = false; dirty = true; requestAnimationFrame(() => { warm(); upload(); }); };
     (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).then(done, done); });
   running = false; start();
   document.fonts?.ready.then(() => {
@@ -523,5 +540,6 @@ if (renderer) {
     // Redraw the legends once the grotesk has loaded, so the letters match the page.
     legends.forEach(({ dm, ch, ink }) => { const prev = dm.map; dm.map = legend(ch, ink); dm.needsUpdate = true; prev.dispose(); });
     board.redrawLegends();
+    gfx.redraw(); dirty = true; // the letter in the keycap's typeface
   });
 }
