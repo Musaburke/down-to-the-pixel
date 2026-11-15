@@ -487,6 +487,7 @@ if (renderer) {
   const yFor = (t) => walk.getBoundingClientRect().top + scrollY + t * (walk.offsetHeight - innerHeight); // the page offset for progress t (readScroll's inverse)
   const jumpTo = (target, after) => {
     if (jumping) return;
+    cancelDrive();
     const land = () => {
       scrollTo({ top: yFor(target), behavior: 'instant' });
       if (!reduced) { p = sp = target; vel = 0; raw = true; dirty = true; }
@@ -503,45 +504,68 @@ if (renderer) {
     jumpTo(0, () => h1?.focus({ preventScroll: true })); // the opening's words are live again before focus moves to them
   });
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => jumpTo(STOP_AT[b.dataset.go])));
-  // Keyboard: Down, Space and Page Down glide to the next beat, Up, Shift+Space and Page Up to the one before. Holding a
-  // key walks on one beat at a time with a short rest at each (key repeat never stacks glides, so it never speeds up);
-  // letting go stops at the beat the current glide is heading for. A second tap during a glide queues one more beat.
-  // The wheel and touch are left alone (and stop a glide). Past the last beat, or below the walk, keys scroll as normal.
-  // Reduced motion: straight there.
-  let glide = null, held = 0, rest = 0;
-  const cancelGlide = () => { if (glide) { cancelAnimationFrame(glide.raf); glide = null; } clearTimeout(rest); };
+  // Keyboard, as momentum. A tap glides to the next beat (eased in and out). Holding eases up to a steady, capped cruise
+  // (key repeat adds nothing, so it never races); letting go slows down over a second or two and comes to rest exactly
+  // on the next beat ahead, rolling on to the one after if the nearest is too close to stop gently. Up keys mirror it.
+  // The wheel and touch are left alone (and stop the drive). Past the last beat, or below the walk, keys scroll as
+  // normal. Reduced motion: straight to the next beat.
+  const CRUISE = 760, RAMP = 0.7, TAP = 160;                                   // px/s, s to reach cruise, below this a release counts as a tap
+  let drive = null;
+  const span = () => walk.offsetHeight - innerHeight, top0 = () => walk.getBoundingClientRect().top + scrollY;
+  const pAt = (y) => (y - top0()) / Math.max(1, span());
   const nextBeat = (from, dir) => (dir > 0 ? BEATS.find((b) => b > from + 0.002) : [...BEATS].reverse().find((b) => b < from - 0.002));
-  const stepBeat = (dir) => {
-    const t = nextBeat(glide ? glide.t : p, dir); if (t === undefined) return false;
-    cancelGlide();
-    const from = scrollY, to = yFor(t);
-    if (reduced) { scrollTo({ top: to, behavior: 'instant' }); return true; }
-    const dur = clamp(Math.abs(to - from) / 2.2, 650, 1500), t0 = performance.now();
-    const step = (now) => {
-      const k = Math.min(1, (now - t0) / dur), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-      scrollTo({ top: from + (to - from) * e, behavior: 'instant' });
-      if (k < 1) { glide.raf = requestAnimationFrame(step); return; }
-      const { queued } = glide; glide = null;
-      if (queued) stepBeat(dir); else if (held === dir) rest = setTimeout(() => { if (held === dir) stepBeat(dir); }, 420);
-    };
-    glide = { t, dir, queued: false, raf: requestAnimationFrame(step) };
-    return true;
+  const cancelDrive = () => { if (drive) cancelAnimationFrame(drive.raf); drive = null; };
+  const settle = (y0, y1, T, ease) => { drive = { ...drive, mode: 'settle', y0, y1, T, ease, t: 0 }; };
+  const tick = (now) => {
+    if (!drive) return;
+    const dt = Math.min(0.05, (now - drive.last) / 1000); drive.last = now;
+    if (drive.mode === 'hold') {
+      drive.held += dt; const k = Math.min(1, drive.held / RAMP); drive.v = CRUISE * k * k * (3 - 2 * k);
+      drive.y = clamp(drive.y + drive.dir * drive.v * dt, yFor(0), yFor(1));
+      scrollTo({ top: drive.y, behavior: 'instant' });
+      if (drive.y === yFor(drive.dir > 0 ? 1 : 0)) { drive = null; return; }
+    } else {
+      drive.t += dt; const k = Math.min(1, drive.t / drive.T);
+      drive.y = drive.y0 + (drive.y1 - drive.y0) * drive.ease(k);
+      scrollTo({ top: drive.y, behavior: 'instant' });
+      if (k >= 1) { drive = null; return; }
+    }
+    drive.raf = requestAnimationFrame(tick);
+  };
+  const inOut = (k) => (1 - Math.cos(Math.PI * k)) / 2, out = (k) => 1 - Math.pow(1 - k, 3); // sine for taps: its peak is gentle; cubic out lands a held run
+  const press = (dir) => {
+    if (reduced) { const b = nextBeat(p, dir); if (b !== undefined) scrollTo({ top: yFor(b), behavior: 'instant' }); return; }
+    if (drive?.mode === 'hold' && drive.dir === dir) return;
+    const carry = drive && drive.dir === dir ? Math.min(1, Math.abs(drive.v ?? 0) / CRUISE) : 0;   // pressed again while slowing: pick the speed back up
+    const y = drive ? drive.y : scrollY; cancelDrive();
+    drive = { dir, mode: 'hold', held: carry * RAMP * 0.6, v: carry * CRUISE, y, last: performance.now() };
+    drive.raf = requestAnimationFrame(tick);
+  };
+  const release = () => {
+    if (!drive || drive.mode !== 'hold') return;
+    const { dir, v, y } = drive, from = pAt(y);
+    if (v < TAP) { // a tap: one beat, eased in and out
+      const b = nextBeat(from, dir); if (b === undefined) { cancelDrive(); return; }
+      const y1 = yFor(b); settle(y, y1, clamp(Math.abs(y1 - y) / 0.6, 1000, 1900) / 1000, inOut); return; // unhurried, near the cruise speed at its fastest
+    }
+    let b = nextBeat(from, dir);                                                   // slow to a stop on a beat, starting at the current speed
+    while (b !== undefined && (3 * Math.abs(yFor(b) - y)) / v < 1.1) { const n = nextBeat(b, dir); if (n === undefined) break; b = n; }
+    if (b === undefined) { cancelDrive(); return; }
+    const y1 = yFor(b); settle(y, y1, Math.min(2.8, (3 * Math.abs(y1 - y)) / v), out);
   };
   if (pinnedP === null) {
-    addEventListener('wheel', cancelGlide, { passive: true }); addEventListener('touchstart', cancelGlide, { passive: true });
+    addEventListener('wheel', cancelDrive, { passive: true }); addEventListener('touchstart', cancelDrive, { passive: true });
     addEventListener('keydown', (e) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       const tag = document.activeElement?.tagName ?? '';
       if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (e.key === ' ' && /^(BUTTON|A|SUMMARY)$/.test(tag))) return; // Space presses a focused control
       const dir = e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey) ? 1 : e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey) ? -1 : 0;
-      if (!dir || scrollY > yFor(1) + 4 || (dir > 0 && (glide ? glide.t : p) >= 1 - 1e-3)) return;
-      e.preventDefault(); held = dir;
-      if (e.repeat) return;                                         // holding: the glide chain carries on by itself
-      if (glide && glide.dir === dir) { glide.queued = true; return; } // a quick second tap: one more beat, no more
-      stepBeat(dir);
+      if (!dir || scrollY > yFor(1) + 4 || (dir > 0 && !drive && p >= 1 - 1e-3)) return;
+      e.preventDefault();
+      if (!e.repeat) press(dir);
     });
-    addEventListener('keyup', () => { held = 0; clearTimeout(rest); });
-    addEventListener('blur', () => { held = 0; clearTimeout(rest); });
+    addEventListener('keyup', (e) => { if (/^(ArrowDown|ArrowUp|PageDown|PageUp| )$/.test(e.key)) release(); });
+    addEventListener('blur', release);
   }
   // Definitions open beside their label (below it, or above near the bottom), clear of the words, and close on scroll.
   let openAt = 0;
@@ -564,7 +588,7 @@ if (renderer) {
     const target = reduced ? 1 : p;
     if (reduced) bar.style.transform = `scaleX(${p.toFixed(4)})`;
     const prevSp = sp;
-    follow(target, dt / 1000, glide ? 0.06 : SMOOTH); // a keyboard glide is already eased, so the camera rides it closely instead of trailing
+    follow(target, dt / 1000, drive ? 0.1 : SMOOTH); // keyboard motion is already eased, so the camera rides it closely instead of trailing
     const pd = pointer.x - pointer.sx, pe = pointer.y - pointer.sy;
     pointer.sx += pd * 0.08; pointer.sy += pe * 0.08;
     const pointerMoving = Math.abs(pd) + Math.abs(pe) > 1e-4;
