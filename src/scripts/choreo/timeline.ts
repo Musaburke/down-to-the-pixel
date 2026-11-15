@@ -38,17 +38,19 @@ export const ROOM_SHOTS: Shot[] = [
 // Pinned travel, in vh: the opening and the approved shots keep their 250, then 150 each for the cable and the processor.
 // Everything above runs over the first SPAN, so the approved shots keep exactly their scroll distance; `pre(p)`
 // reads progress in those units.
-const TRAVEL = { approved: 250, cable: 150, cpu: 150, gfx: 150, px: 150 };
-const TOTAL = TRAVEL.approved + TRAVEL.cable + TRAVEL.cpu + TRAVEL.gfx + TRAVEL.px;
+const TRAVEL = { approved: 250, cable: 150, cpu: 150, gfx: 150, px: 150, end: 100 };
+const TOTAL = TRAVEL.approved + TRAVEL.cable + TRAVEL.cpu + TRAVEL.gfx + TRAVEL.px + TRAVEL.end;
 export const SPAN = TRAVEL.approved / TOTAL;
 export const CABLE_END = (TRAVEL.approved + TRAVEL.cable) / TOTAL;
 export const CPU_END = (TRAVEL.approved + TRAVEL.cable + TRAVEL.cpu) / TOTAL;
 export const GFX_END = (TRAVEL.approved + TRAVEL.cable + TRAVEL.cpu + TRAVEL.gfx) / TOTAL;
+export const PX_END = (TOTAL - TRAVEL.end) / TOTAL;
 export const pre = (p: number): number => Math.min(1, p / SPAN);
 const after = (t: number): number => SPAN + t * (CABLE_END - SPAN); // 0..1 across the cable's share of the travel
 export const inCpu = (t: number): number => CABLE_END + t * (CPU_END - CABLE_END); // 0..1 across the processor's share
 export const inGfx = (t: number): number => CPU_END + t * (GFX_END - CPU_END); // 0..1 across the graphics share
-export const inPx = (t: number): number => GFX_END + t * (1 - GFX_END);        // 0..1 across the pixel's share
+export const inPx = (t: number): number => GFX_END + t * (PX_END - GFX_END);   // 0..1 across the pixel's share
+export const inEnd = (t: number): number => PX_END + t * (1 - PX_END);         // 0..1 across the ending
 export const CABLE_SHOTS: Shot[] = [ // the lead falls straight down, so the camera travels down with the scroll
   { id: 'drop',  t: after(0.16), pos: [3.0, -2.0, 9.0],  target: [0.3, -4.2, 0],  fov: 28, roll: 0, ease: 'inOut'  }, // follows the bead out of the switch onto the lead
   { id: 'run',   t: after(0.36), pos: [2.2, -6.6, 5.0],  target: [0.2, -8.6, 0],  fov: 30, roll: 0, ease: 'inOut'  }, // down the braid
@@ -92,7 +94,7 @@ export const PX_SHOTS: Shot[] = [
   { id: 'screen', t: inPx(0.3),  pos: [9.0, -42.8, -0.9],   target: [8.95, -48, -7.25], fov: 32, roll: 0, ease: 'inOut'  }, // the letter on the screen
   { id: 'closer', t: inPx(0.6),  pos: [8.9, -46.1, -4.95],  target: [8.88, -48, -7.0],  fov: 32, roll: 0, ease: 'inOut'  }, // down toward the one pixel
   { id: 'pixel',  t: inPx(0.85), pos: [8.88, -47.33, -6.72], target: [8.88, -48, -7.0],  fov: 32, roll: 0, ease: 'inOut'  }, // its three lights fill the frame
-  { id: 'hold',   t: 1,          pos: [8.88, -47.36, -6.74], target: [8.88, -48, -7.0], fov: 32, roll: 0, ease: 'linear' }, // dwell
+  { id: 'hold',   t: inPx(1),    pos: [8.88, -47.36, -6.74], target: [8.88, -48, -7.0], fov: 32, roll: 0, ease: 'inOut'  }, // dwell
 ];
 export const PX_PARTS: Record<string, [number, number]> = {
   screen: [inPx(0.04), inPx(0.3)],  // tiles sink, the screen lights
@@ -101,11 +103,20 @@ export const PX_PARTS: Record<string, [number, number]> = {
   flare:  [inPx(0.86), inPx(0.98)], // and the pixel flares as it lands
   notes:  [inPx(0.8), inPx(0.88)],  // labels on the three lights
 };
+// The ending: straight back up the same line of sight until the whole M glows small on the dark screen, the closing
+// words beside it.
+export const END_SHOTS: Shot[] = [
+  { id: 'back', t: inEnd(0.55), pos: [9.0, -37.7, -3.0], target: [9.0, -48, -7.6], fov: 32, roll: 0, ease: 'inOut'  }, // the whole letter on the screen
+  { id: 'rest', t: 1,           pos: [9.0, -37.5, -2.9], target: [9.0, -48, -7.6], fov: 32, roll: 0, ease: 'linear' }, // dwell
+];
+export const END_PARTS: Record<string, [number, number]> = {
+  regroup: [inEnd(0.05), inEnd(0.4)], // each pixel closes back into one warm square; the neighbours come back up
+};
 // Cable parts, in full progress p.
 export const CABLE_PARTS: Record<string, [number, number]> = {
   beadDrop: [after(0.02), after(0.2)], // bead leaves the contacts and falls onto the lead
   ride:     [after(0.16), after(1)],   // bits run along the data pair
   notes:    [after(0.45), after(0.55)], // engraved labels arrive as the stripped section comes into view
 };
-export const RIG: Shot[] = [...[...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease }))].map((s): Shot => ({ ...s, t: s.t * SPAN })), ...CABLE_SHOTS, ...CPU_SHOTS, ...GFX_SHOTS, ...PX_SHOTS];
-export const TEXT_RIG: [string, number][] = [...TEXT.map(([id, t], i): [string, number] => [id, i ? at(t) * SPAN : 0]), ['cable', after(0.22)], ['cpu', inCpu(0.28)], ['gfx', inGfx(0.22)], ['px', inPx(0.28)]];
+export const RIG: Shot[] = [...[...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease }))].map((s): Shot => ({ ...s, t: s.t * SPAN })), ...CABLE_SHOTS, ...CPU_SHOTS, ...GFX_SHOTS, ...PX_SHOTS, ...END_SHOTS];
+export const TEXT_RIG: [string, number][] = [...TEXT.map(([id, t], i): [string, number] => [id, i ? at(t) * SPAN : 0]), ['cable', after(0.22)], ['cpu', inCpu(0.28)], ['gfx', inGfx(0.22)], ['px', inPx(0.28)], ['end', inEnd(0.5)]];

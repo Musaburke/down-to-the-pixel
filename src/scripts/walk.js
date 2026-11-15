@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx, PX_PARTS, inPx } from './choreo/timeline.ts';
+import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx, PX_PARTS, inPx, END_PARTS, inEnd } from './choreo/timeline.ts';
 import { clamp, seg, lerp, part } from './choreo/seg.ts';
 import { makeFlow } from './choreo/flow.ts';
 import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from './three/textures.ts';
@@ -332,7 +332,8 @@ if (renderer) {
     gfx.group.visible = fullP > inGfx(0.12);
     if (gfx.group.visible) {
       gfx.set(seg(fullP, ...GFX_PARTS.draw), seg(fullP, ...GFX_PARTS.grid), seg(fullP, ...GFX_PARTS.fill));
-      gfx.screen(seg(fullP, ...PX_PARTS.screen), 1 - THREE.MathUtils.smoothstep(seg(fullP, ...PX_PARTS.split), 0, 1), Math.sin(Math.PI * seg(fullP, ...PX_PARTS.flare)), seg(fullP, PX_PARTS.flare[0] - 0.02, PX_PARTS.flare[0] + 0.03)); // stop 6
+      const regroup = THREE.MathUtils.smoothstep(seg(fullP, ...END_PARTS.regroup), 0, 1); // the ending: back to one warm square per pixel, neighbours up again
+      gfx.screen(seg(fullP, ...PX_PARTS.screen), 1 - THREE.MathUtils.smoothstep(seg(fullP, ...PX_PARTS.split), 0, 1) * (1 - regroup), Math.sin(Math.PI * seg(fullP, ...PX_PARTS.flare)), seg(fullP, PX_PARTS.flare[0] - 0.02, PX_PARTS.flare[0] + 0.03) * (1 - regroup)); // stop 6
     }
     if (fullP > PX_PARTS.bead[0]) { const b = seg(fullP, ...PX_PARTS.bead); beadAt.lerpVectors(beadFrom, pxCentre, 1 - Math.pow(1 - b, 2)).y += 0.02; } // the message comes down into the pixel
     const fl = reduced ? 0 : Math.pow(Math.sin(Math.PI * seg(fullP, ...GFX_PARTS.flash)), 2) * 0.92;
@@ -416,7 +417,7 @@ if (renderer) {
     const lidK = seg(fullP, ...CPU_PARTS.lid);
     cpuLabels(seg(fullP, ...CPU_PARTS.notes) * (1 - seg(fullP, inGfx(0.1), inGfx(0.18))), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0.15, 0.4) : seg(lidK, 0.7, 1))); // the lid's label leaves with it; the others wait for it to clear
     const fill = seg(fullP, ...GFX_PARTS.fill);
-    pxLabels(seg(fullP, ...PX_PARTS.notes), gfx.lights);
+    pxLabels(seg(fullP, ...PX_PARTS.notes) * (1 - seg(fullP, inEnd(0), inEnd(0.08))), gfx.lights);
     gfxLabels(seg(fullP, ...GFX_PARTS.notes) * (1 - seg(fullP, inPx(0), inPx(0.08))), gfx.anchors, (i) => (i === 0 ? 1 - seg(fill, 0.3, 0.6) : i === 1 ? seg(fullP, ...GFX_PARTS.grid) : seg(fill, 0.75, 1))); // each label arrives with its part
   }
 
@@ -445,7 +446,7 @@ if (renderer) {
     let idx = 0; TEXT_RIG.forEach(([, t], i) => { if (p >= t) idx = i; });
     if (textIdx === -2 || idx === textIdx) return; textIdx = idx;
     groups.forEach((g, i) => { g.dataset.state = i === idx ? 'on' : i < idx ? 'after' : 'before'; g.inert = i !== idx; });
-    const here = ['key', 'key', 'switch', 'cable', 'processor', 'graphics', 'pixel'][idx]; let past = true;
+    const here = ['key', 'key', 'switch', 'cable', 'processor', 'graphics', 'pixel', 'pixel'][idx]; let past = true;
     stopEls.forEach((li) => { const cur = li.dataset.stop === here; if (cur) past = false; li.toggleAttribute('aria-current', cur); if (cur) li.setAttribute('aria-current', 'step'); li.toggleAttribute('data-past', past && !cur); });
   }
   let shut = null;
@@ -471,6 +472,16 @@ if (renderer) {
   }
   addEventListener('resize', () => { resize(); clearTimeout(resize.t); resize.t = setTimeout(() => { split(); textIdx = -1; }, 150); });
   addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' || reduced) return; pointer.x = e.clientX / innerWidth - 0.5; pointer.y = e.clientY / innerHeight - 0.5; }, { passive: true });
+  // "Follow it again": the scene fades to the desk still under it, the page jumps to the top and the spring is snapped
+  // there, so the camera does not rewind through every stop; then the scene fades back in on the desk.
+  document.querySelector('.again')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const h1 = document.querySelector('h1'); h1?.setAttribute('tabindex', '-1');
+    const go = () => { scrollTo({ top: 0, behavior: 'instant' }); if (!reduced) { p = sp = 0; vel = 0; raw = true; dirty = true; } if (textIdx !== -2) { textIdx = -1; setText(0); } h1?.focus({ preventScroll: true }); }; // the opening's words are live again before focus moves to them
+    if (reduced) { go(); return; }
+    root.classList.remove('lit');
+    setTimeout(() => { go(); requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('lit'))); }, 480);
+  });
   if (debug) { hud = document.createElement('div'); hud.className = 'hud'; document.body.append(hud); }
 
   function frame(now) {
