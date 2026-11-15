@@ -23,7 +23,7 @@ The cable stop shows no figures. Its copy makes two claims, both standard USB be
 - A keyboard sends a code for the key's position, not a letter; the computer maps it to a letter through the layout (USB HID Usage Tables, Keyboard/Keypad page). https://www.usb.org/hid
 - The data wires are a twisted pair carrying the signal as opposites, so interference common to both cancels (USB 2.0 Specification, differential signalling). https://www.usb.org/document-library/usb-20-specification
 
-TODO(musa): these two links were not re-read on 15 Nov 2026; check them before going public.
+Checked by Musa, 15 Nov 2026: both links and both claims confirmed.
 
 The wire colours in the cutaway follow the site's palette, not the USB colour code; the drawing is illustrative.
 
@@ -49,7 +49,7 @@ No new figures; the 2 mm, 4 mm, 30 cN and 100 cN come from the CHERRY table abov
 - The processor handles incoming input through interrupts: it pauses its current work briefly, deals with the input, then resumes (standard operating-system behaviour).
 - A processor's logic is built from transistors, which act as electrically controlled switches with no moving parts.
 
-TODO(musa): skim these before going public; none states a number.
+Checked by Musa, 15 Nov 2026: the wording is right.
 
 ## Label definitions (all stops)
 
