@@ -480,6 +480,7 @@ if (renderer) {
     key.intensity = 2.6 * (1 - r) * (1 - 0.55 * chipLit); fill.intensity = 0.55 * (1 - r) * (1 - 0.4 * chipLit); rim.intensity = 1.1 * (1 - 0.8 * r) * (1 - 0.85 * chipLit); hemi.intensity = (0.4 - 0.1 * r) * (1 - 0.5 * chipLit);
     scene.environmentIntensity = 1 - 0.45 * r;
     renderer.render(scene, camera);
+    if (hud && renderer.info.programs.length > (window.__programs ?? 1e9)) console.log('[programs]', sp.toFixed(3), renderer.info.programs.slice(window.__programs).map((g) => g.name + ' ' + g.cacheKey.slice(0, 160)).join(' | ')); // debug: what compiled late
     window.__programs = renderer.info.programs.length;
     if (hud) hud.textContent = `p ${p.toFixed(3)}  sp ${sp.toFixed(3)}\nsegment ${segName}\ndraw calls ${renderer.info.render.calls}  triangles ${renderer.info.render.triangles}`;
     window.__ready = true; window.__sp = sp;
@@ -501,7 +502,20 @@ if (renderer) {
   bakeShadows();
   Promise.race([Promise.all(waiting), new Promise((r) => setTimeout(r, 6000))]).then(() => { root.classList.add('lit'); dirty = true; window.__loaded = true; });
   // Shaders for the later stops compile in the background now, so the first scroll into them never stalls on it.
-  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = true; const done = () => { cable.group.visible = cpu.group.visible = false; dirty = true; };
+  // Their textures go up to the GPU too, one a frame, or the first frame that draws them stalls on the upload.
+  const uploads = new Set();
+  [cable.group, cpu.group].forEach((g) => g.traverse((o) => [o.material].flat().forEach((m) => m && Object.values(m).forEach((v) => { if (v?.isTexture) uploads.add(v); }))));
+  const queue = [...uploads], upload = () => { const t = queue.shift(); if (!t) return; renderer.initTexture(t); requestAnimationFrame(upload); };
+  // Compiling is not enough on every backend (ANGLE on Metal builds each pipeline at its first draw), so once they are
+  // compiled every part is drawn once, culling off, and the real frame is drawn straight over it in the same task.
+  const warm = () => {
+    const culled = [];
+    [cable.group, cpu.group].forEach((g) => { g.visible = true; g.traverse((o) => { if (o.isMesh && o.frustumCulled) { culled.push(o); o.frustumCulled = false; } }); });
+    renderer.render(scene, camera);
+    culled.forEach((o) => { o.frustumCulled = true; });
+    cable.group.visible = fullP > SPAN + 0.005; cpu.group.visible = fullP > CABLE_END - 0.05; renderer.render(scene, camera); // as pose() left them
+  };
+  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = true; const done = () => { cable.group.visible = cpu.group.visible = false; dirty = true; requestAnimationFrame(() => { warm(); upload(); }); };
     (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).then(done, done); });
   running = false; start();
   document.fonts?.ready.then(() => {
