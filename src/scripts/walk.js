@@ -469,8 +469,8 @@ if (renderer) {
   if (reduced) sp = 1;
   // Critically damped spring (smoothDamp): the camera eases into a scroll instead of jumping to full speed.
   const SMOOTH = 0.34; // seconds: v3.2 doubles the glide, so a flick pours into place instead of snapping
-  function follow(target, dts) {
-    const w = 2 / SMOOTH, x = w * dts, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  function follow(target, dts, smooth = SMOOTH) {
+    const w = 2 / smooth, x = w * dts, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
     const ch = sp - target, tmp = (vel + w * ch) * dts;
     vel = (vel - w * tmp) * e; sp = target + (ch + tmp) * e;
     if (Math.abs(target - sp) < 1e-5 && Math.abs(vel) < 1e-4) { sp = target; vel = 0; }
@@ -503,22 +503,29 @@ if (renderer) {
     jumpTo(0, () => h1?.focus({ preventScroll: true })); // the opening's words are live again before focus moves to them
   });
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => jumpTo(STOP_AT[b.dataset.go])));
-  // Keyboard: Down, Space and Page Down glide to the next beat, Up, Shift+Space and Page Up to the one before; a press
-  // during a glide steps on from where that glide is heading. The wheel and touch are left alone (and stop a glide).
-  // Past the last beat, or below the walk, keys scroll as normal. Reduced motion: straight there.
-  let glide = null;
-  const cancelGlide = () => { if (glide) { cancelAnimationFrame(glide.raf); glide = null; } };
-  const glideTo = (t) => {
+  // Keyboard: Down, Space and Page Down glide to the next beat, Up, Shift+Space and Page Up to the one before. Holding a
+  // key walks on one beat at a time with a short rest at each (key repeat never stacks glides, so it never speeds up);
+  // letting go stops at the beat the current glide is heading for. A second tap during a glide queues one more beat.
+  // The wheel and touch are left alone (and stop a glide). Past the last beat, or below the walk, keys scroll as normal.
+  // Reduced motion: straight there.
+  let glide = null, held = 0, rest = 0;
+  const cancelGlide = () => { if (glide) { cancelAnimationFrame(glide.raf); glide = null; } clearTimeout(rest); };
+  const nextBeat = (from, dir) => (dir > 0 ? BEATS.find((b) => b > from + 0.002) : [...BEATS].reverse().find((b) => b < from - 0.002));
+  const stepBeat = (dir) => {
+    const t = nextBeat(glide ? glide.t : p, dir); if (t === undefined) return false;
     cancelGlide();
     const from = scrollY, to = yFor(t);
-    if (reduced) { scrollTo({ top: to, behavior: 'instant' }); return; }
+    if (reduced) { scrollTo({ top: to, behavior: 'instant' }); return true; }
     const dur = clamp(Math.abs(to - from) / 2.2, 650, 1500), t0 = performance.now();
     const step = (now) => {
       const k = Math.min(1, (now - t0) / dur), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
       scrollTo({ top: from + (to - from) * e, behavior: 'instant' });
-      if (k < 1) glide.raf = requestAnimationFrame(step); else glide = null;
+      if (k < 1) { glide.raf = requestAnimationFrame(step); return; }
+      const { queued } = glide; glide = null;
+      if (queued) stepBeat(dir); else if (held === dir) rest = setTimeout(() => { if (held === dir) stepBeat(dir); }, 420);
     };
-    glide = { t, raf: requestAnimationFrame(step) };
+    glide = { t, dir, queued: false, raf: requestAnimationFrame(step) };
+    return true;
   };
   if (pinnedP === null) {
     addEventListener('wheel', cancelGlide, { passive: true }); addEventListener('touchstart', cancelGlide, { passive: true });
@@ -526,14 +533,15 @@ if (renderer) {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       const tag = document.activeElement?.tagName ?? '';
       if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (e.key === ' ' && /^(BUTTON|A|SUMMARY)$/.test(tag))) return; // Space presses a focused control
-      const down = e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey), up = e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey);
-      if (!down && !up) return;
-      const at = glide ? glide.t : p;
-      if ((down && at >= 1 - 1e-3) || scrollY > yFor(1) + 4) return;
-      const next = down ? BEATS.find((b) => b > at + 0.002) : [...BEATS].reverse().find((b) => b < at - 0.002);
-      if (next === undefined) return;
-      e.preventDefault(); glideTo(next);
+      const dir = e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey) ? 1 : e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey) ? -1 : 0;
+      if (!dir || scrollY > yFor(1) + 4 || (dir > 0 && (glide ? glide.t : p) >= 1 - 1e-3)) return;
+      e.preventDefault(); held = dir;
+      if (e.repeat) return;                                         // holding: the glide chain carries on by itself
+      if (glide && glide.dir === dir) { glide.queued = true; return; } // a quick second tap: one more beat, no more
+      stepBeat(dir);
     });
+    addEventListener('keyup', () => { held = 0; clearTimeout(rest); });
+    addEventListener('blur', () => { held = 0; clearTimeout(rest); });
   }
   // Definitions open beside their label (below it, or above near the bottom), clear of the words, and close on scroll.
   let openAt = 0;
@@ -556,7 +564,7 @@ if (renderer) {
     const target = reduced ? 1 : p;
     if (reduced) bar.style.transform = `scaleX(${p.toFixed(4)})`;
     const prevSp = sp;
-    follow(target, dt / 1000);
+    follow(target, dt / 1000, glide ? 0.06 : SMOOTH); // a keyboard glide is already eased, so the camera rides it closely instead of trailing
     const pd = pointer.x - pointer.sx, pe = pointer.y - pointer.sy;
     pointer.sx += pd * 0.08; pointer.sy += pe * 0.08;
     const pointerMoving = Math.abs(pd) + Math.abs(pe) > 1e-4;
