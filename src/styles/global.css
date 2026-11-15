@@ -23,7 +23,7 @@
   --step-hero: clamp(52px, 5vw, 72px);
   --step-head: clamp(36px, 3.3vw, 52px);
   --step-body: clamp(17px, 1.2vw, 19px);
-  --walk: 500vh;       /* total height (pinned travel = walk - 100vh): 400vh. The opening and the approved shots keep their 250vh; the cable stop has the last 150vh */
+  --walk: 650vh;       /* total height (pinned travel = walk - 100vh): 550vh. The opening and the approved shots keep their 250vh; the cable and the processor have 150vh each */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --gutter-l: max(16px, env(safe-area-inset-left, 0px));
   --gutter-r: max(16px, env(safe-area-inset-right, 0px));

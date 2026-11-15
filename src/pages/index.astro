@@ -25,6 +25,12 @@ import Base from '../layouts/Base.astro';
         <span class="note">The data pair, twisted together</span>
         <span class="note">The plug, into the computer</span>
       </div>
+      <div class="notes cpu-notes" aria-hidden="true">
+        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <span class="note">The metal lid, lifting off</span>
+        <span class="note">The silicon, lit where the code is read</span>
+        <span class="note">Capacitors, steadying its power</span>
+      </div>
       <div class="gauge" aria-hidden="true">
         <svg><line/><line/><line/><line/><circle r="4.5"/></svg>
         <span class="note">At rest</span>
@@ -32,7 +38,7 @@ import Base from '../layouts/Base.astro';
         <span class="note">4 mm all the way down</span>
       </div>
       <ol class="stops" aria-label="The six stops of the walkthrough">
-        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li data-stop="cable">The cable</li><li>The processor</li><li>Graphics</li><li>The pixel</li>
+        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li data-stop="cable">The cable</li><li data-stop="processor">The processor</li><li>Graphics</li><li>The pixel</li>
       </ol>
       <div class="panel">
         <div class="group" data-stop="hero">
@@ -55,17 +61,22 @@ import Base from '../layouts/Base.astro';
           <p data-split>A chip in the keyboard turns the closed circuit into a short coded message and sends it down the cable, along two thin wires twisted round each other.</p>
           <details class="deeper"><summary>Go deeper</summary><p>The keyboard never sends a letter. It sends a code for the key's position, and the computer decides which letter that key means in your layout. The two data wires are twisted together so that interference from outside hits both the same way and cancels out.</p></details>
         </div>
+        <div class="group" data-stop="cpu">
+          <h2 data-split>Into the <em>processor</em>.</h2>
+          <p data-split>On the computer's main board, the message runs along thin copper tracks to the processor. Under its metal lid is a sliver of silicon covered in switches far too small to see.</p>
+          <details class="deeper"><summary>Go deeper</summary><p>The processor runs all of the computer's software. A small part of it, the keyboard driver, reads the key's code; the system then looks up which letter that key means in your layout and hands it to the program you are typing into.</p></details>
+        </div>
       </div>
     </div>
   </section>
   <section class="next">
-    <h2>Next, <em>the processor</em>.</h2>
-    <p>From here the message reaches the computer. The full walkthrough follows it to the screen.</p>
+    <h2>Next, <em>the graphics</em>.</h2>
+    <p>From here the letter is drawn. The full walkthrough follows it to the screen.</p>
     <a class="quiet" href="#top">Back to the key</a>
   </section>
 </main>
 <footer class="foot">
-  <span>A look sample: three of the six stops.</span>
+  <span>A look sample: four of the six stops.</span>
   <a href="#top">Back to the top</a>
 </footer>
 </Base>

@@ -27,6 +27,10 @@ TODO(musa): these two links were not re-read on 15 Nov 2026; check them before g
 
 The wire colours in the cutaway follow the site's palette, not the USB colour code; the drawing is illustrative.
 
+## The processor (stop 4)
+
+No figures. The copy says the keyboard driver reads the key's code and the system maps it to a letter through the layout before passing it to the program (standard operating-system keyboard handling). The die is drawn, not a real chip's layout, and is not labelled as cores. The capacitors on the package are decoupling capacitors, which steady the chip's supply.
+
 ## Textures (Poly Haven, CC0)
 
 Every photo texture comes from Poly Haven, licensed CC0 (public domain: free to use, no credit required). Downloaded 15 Nov 2026 through the Poly Haven API and converted to WebP. Files are in `public/assets/<id>/`.

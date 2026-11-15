@@ -35,24 +35,42 @@ export const ROOM_SHOTS: Shot[] = [
   { id: 'desk-hold', t: 0.06, pos: [41, 24, 50], target: [5, -1, -4],   fov: 30, roll: 0, ease: 'linear' }, // dwell, slow creep
   { id: 'desk-in',   t: 0.13, pos: [17, 13, 21], target: [2, 0.2, -1.5], fov: 34, roll: 0, ease: 'inOut'  }, // closing on the M, on the line into the hero
 ];
-// Cable stop (15 Nov 2026): the pinned travel grows from 250vh to 400vh. Everything above runs over the first
-// SPAN of it, so the approved shots keep exactly their scroll distance; `pre(p)` reads progress in those units.
-export const SPAN = 250 / 400;
+// Pinned travel, in vh: the opening and the approved shots keep their 250, then 150 each for the cable and the processor.
+// Everything above runs over the first SPAN, so the approved shots keep exactly their scroll distance; `pre(p)`
+// reads progress in those units.
+const TRAVEL = { approved: 250, cable: 150, cpu: 150 };
+const TOTAL = TRAVEL.approved + TRAVEL.cable + TRAVEL.cpu;
+export const SPAN = TRAVEL.approved / TOTAL;
+export const CABLE_END = (TRAVEL.approved + TRAVEL.cable) / TOTAL;
 export const pre = (p: number): number => Math.min(1, p / SPAN);
-const after = (t: number): number => SPAN + t * (1 - SPAN); // 0..1 across the cable's share of the travel
+const after = (t: number): number => SPAN + t * (CABLE_END - SPAN); // 0..1 across the cable's share of the travel
+const inCpu = (t: number): number => CABLE_END + t * (1 - CABLE_END); // 0..1 across the processor's share
 export const CABLE_SHOTS: Shot[] = [ // the lead falls straight down, so the camera travels down with the scroll
   { id: 'drop',  t: after(0.16), pos: [3.0, -2.0, 9.0],  target: [0.3, -4.2, 0],  fov: 28, roll: 0, ease: 'inOut'  }, // follows the bead out of the switch onto the lead
   { id: 'run',   t: after(0.36), pos: [2.2, -6.6, 5.0],  target: [0.2, -8.6, 0],  fov: 30, roll: 0, ease: 'inOut'  }, // down the braid
   { id: 'strip', t: after(0.56), pos: [1.7, -10.3, 3.7], target: [0.15, -11.6, 0], fov: 30, roll: 0, ease: 'inOut'  }, // the stepped cut: braid, jacket, foil
   { id: 'wires', t: after(0.76), pos: [1.7, -14.5, 3.7], target: [0.15, -15.8, 0], fov: 30, roll: 0, ease: 'inOut'  }, // the twisted pair carrying the bits
-  { id: 'plug',  t: 1,           pos: [2.4, -22.4, 5.8], target: [0.3, -25.4, 0], fov: 30, roll: 0, ease: 'linear' }, // into the plug
+  { id: 'plug',  t: after(1),    pos: [2.4, -22.4, 5.8], target: [0.3, -25.4, 0], fov: 30, roll: 0, ease: 'linear' }, // into the plug
 ];
+// Stop 4: down into the socket, along the tracks over the board, then straight down onto the processor.
+export const CPU_SHOTS: Shot[] = [
+  { id: 'socket', t: inCpu(0.2),  pos: [2.2, -24.3, 4.4],  target: [0.8, -27.05, -0.9], fov: 32, roll: 0, ease: 'inOut'  }, // the plug in its socket, the tracks leaving it
+  { id: 'tracks', t: inCpu(0.44), pos: [3.6, -21.6, 2.4],  target: [5.4, -27.05, -4.2], fov: 34, roll: 0, ease: 'inOut'  }, // higher, looking along the tracks to the chip
+  { id: 'over',   t: inCpu(0.7),  pos: [9.0, -18.2, -3.9], target: [9.0, -27.05, -7],   fov: 32, roll: 0, ease: 'inOut'  }, // top-down over the package as the lid lifts
+  { id: 'die',    t: 1,           pos: [9.0, -21.9, -5.2], target: [9.0, -26.95, -7],   fov: 30, roll: 0, ease: 'linear' }, // down onto the die as it lights
+];
+export const CPU_PARTS: Record<string, [number, number]> = {
+  tracks: [inCpu(0.08), inCpu(0.62)], // the bead runs the tracks to the package
+  lid:    [inCpu(0.52), inCpu(0.8)],  // the lid lifts and slides off
+  into:   [inCpu(0.62), inCpu(0.8)],  // the bead crosses onto the die
+  wave:   [inCpu(0.74), 1],           // the die lights from where it came in
+  notes:  [inCpu(0.4), inCpu(0.5)],   // labels arrive over the package
+};
 // Cable parts, in full progress p.
 export const CABLE_PARTS: Record<string, [number, number]> = {
   beadDrop: [after(0.02), after(0.2)], // bead leaves the contacts and falls onto the lead
-  ride:     [after(0.16), 1],          // bits run along the data pair
+  ride:     [after(0.16), after(1)],   // bits run along the data pair
   notes:    [after(0.45), after(0.55)], // engraved labels arrive as the stripped section comes into view
 };
-export const RIG: Shot[] = [...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease })), ...CABLE_SHOTS]
-  .map((s): Shot => (CABLE_SHOTS.includes(s) ? s : { ...s, t: s.t * SPAN }));
-export const TEXT_RIG: [string, number][] = [...TEXT.map(([id, t], i): [string, number] => [id, i ? at(t) * SPAN : 0]), ['cable', after(0.22)]];
+export const RIG: Shot[] = [...[...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease }))].map((s): Shot => ({ ...s, t: s.t * SPAN })), ...CABLE_SHOTS, ...CPU_SHOTS];
+export const TEXT_RIG: [string, number][] = [...TEXT.map(([id, t], i): [string, number] => [id, i ? at(t) * SPAN : 0]), ['cable', after(0.22)], ['cpu', inCpu(0.28)]];

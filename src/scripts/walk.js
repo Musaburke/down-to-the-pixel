@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS } from './choreo/timeline.ts';
+import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS } from './choreo/timeline.ts';
 import { clamp, seg, lerp, part } from './choreo/seg.ts';
 import { makeFlow } from './choreo/flow.ts';
 import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from './three/textures.ts';
@@ -7,6 +7,7 @@ import { roundBox, strip, boxUV } from './three/geometry.ts';
 import { DESK_Y, BOARD, CAP, capGeo, decalGeo, sculpt, buildBoard } from './three/stops/board.ts';
 import { buildCorner } from './three/stops/corner.ts';
 import { buildCable } from './three/stops/cable.ts';
+import { buildCpu } from './three/stops/cpu.ts';
 import { split as splitText } from './text.ts';
 
 const root = document.documentElement;
@@ -268,6 +269,7 @@ if (renderer) {
   Promise.all(waiting).then(() => { plugWood.map = woodMat.map; plugWood.normalMap = woodMat.normalMap; plugWood.roughnessMap = woodMat.roughnessMap; if (woodMat.normalMap) plugWood.normalScale.set(1.3, 1.3); plugWood.needsUpdate = true; });
   const cable = buildCable({ sleeve: sleeveMat, wood: plugWood, brass: physical({ color: 0xd2bd8f, metalness: 0.7, roughness: 0.4, envMapIntensity: 2, normalMap: pbt, normalScale: new THREE.Vector2(0.03, 0.03) }) }); scene.add(cable.group); cable.group.visible = false;
   const cableRim = new THREE.DirectionalLight(0xffd2a0, 0); cableRim.position.set(7, -6, -11); cableRim.target.position.set(0, -14, 0); scene.add(cableRim, cableRim.target); // warm edge light from behind, for the lead only
+  const cpu = buildCpu(); scene.add(cpu.group); cpu.group.visible = false;
   const cpart = (k, ease = 'inOut') => { const [a, b] = CABLE_PARTS[k], x = seg(fullP, a, b); return ease === 'linear' ? x : x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
   let fullP = 0;
 
@@ -309,9 +311,15 @@ if (renderer) {
       const drop = cpart('beadDrop'), ride = cpart('ride', 'linear');
       cable.beadAt(cable.uAt(Math.min(-2.3, camTgt.y - 0.9)), v1); // rides a little ahead of where the camera looks, so it leads the way down
       if (drop < 1) beadAt.lerp(v1, drop); else beadAt.copy(v1);
+      if (fullP > CPU_PARTS.tracks[0]) { // stop 4: out of the plug, along the tracks, onto the die
+        const tr = seg(fullP, ...CPU_PARTS.tracks), into = seg(fullP, ...CPU_PARTS.into);
+        cpu.beadAt(tr + into, v2); beadAt.lerp(v2, THREE.MathUtils.smoothstep(tr, 0, 0.12));
+      }
       cable.setFlow(ride * 0.5 + (reduced || pinnedP !== null ? 0 : now * 0.000035), seg(fullP, CABLE_PARTS.ride[0], CABLE_PARTS.ride[0] + 0.06));
     } else cable.setFlow(0, 0);
-    cable.group.visible = fullP > SPAN + 0.005; cableRim.intensity = 2.4 * seg(fullP, SPAN, SPAN + 0.08);
+    cable.group.visible = fullP > SPAN + 0.005;
+    cpu.group.visible = fullP > CABLE_END - 0.05;
+    if (cpu.group.visible) cpu.set(seg(fullP, ...CPU_PARTS.lid), seg(fullP, ...CPU_PARTS.wave), seg(fullP, ...CPU_PARTS.tracks) * 0.6 + (reduced || pinnedP !== null ? 0 : now * 0.000035), seg(fullP, CPU_PARTS.tracks[0], CPU_PARTS.tracks[0] + 0.03)); cableRim.intensity = 2.4 * seg(fullP, SPAN, SPAN + 0.08);
     const shimmer = reduced ? 1 : 1 + Math.sin(now * 0.004) * 0.05 + Math.sin(now * 0.0113) * 0.03;
     const flare = 1 + 0.6 * Math.sin(Math.PI * seg(p, 0.88, 0.97));
     const size = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.1 * shimmer * flare;
@@ -352,24 +360,35 @@ if (renderer) {
     });
   }
 
-  const cnotes = document.querySelector('.cable-notes'), cnoteEls = [...cnotes.querySelectorAll('.note')];
-  const cnoteLines = [...cnotes.querySelectorAll('line')], cnoteDots = [...cnotes.querySelectorAll('circle')];
-  let cnotesOn = -1;
-  function annotateCable() { // the same engraved labels as the switch, on the cut-away lead
-    const o = W > 760 ? cpart('notes', 'linear') : 0;
-    if (o !== cnotesOn) { cnotes.style.opacity = o.toFixed(3); cnotesOn = o; }
-    if (o === 0) return;
-    camera.updateMatrixWorld();
-    const s = clamp(W / 1440, 0.75, 1);
-    [[-110, -40, -1], [120, -30, 1], [120, 40, 1], [110, 30, 1]].forEach(([dx, dy, side], i) => { const a = cable.anchors[i];
-      anchor.copy(a).project(camera);
-      const x = (anchor.x + 1) / 2 * W, y = (1 - anchor.y) / 2 * H, ex = x + dx * s, ey = y + dy * s;
-      const L = cnoteLines[i]; L.setAttribute('x1', x.toFixed(1)); L.setAttribute('y1', y.toFixed(1)); L.setAttribute('x2', ex.toFixed(1)); L.setAttribute('y2', ey.toFixed(1));
-      cnoteDots[i].setAttribute('cx', x.toFixed(1)); cnoteDots[i].setAttribute('cy', y.toFixed(1));
-      cnoteEls[i].style.transform = `translate(${(ex + 10 * side).toFixed(1)}px, ${ey.toFixed(1)}px) translate(${side > 0 ? 0 : -100}%, -50%)`;
-      const seen = x > W * 0.38 && x < W * 0.96 ? '1' : '0'; // a label whose part is behind the words or off frame waits
-      cnoteEls[i].style.opacity = L.style.opacity = cnoteDots[i].style.opacity = seen;
-    });
+  // Engraved labels for the later stops: each block projects its anchors and draws leader lines to its labels.
+  // `layout` is [dx, dy, side] per label; a label whose part is behind the words or off frame waits.
+  const labelSets = [];
+  const labels = (selector, layout) => {
+    const el = document.querySelector(selector), set = { el, on: -1, els: [...el.querySelectorAll('.note')], lines: [...el.querySelectorAll('line')], dots: [...el.querySelectorAll('circle')] };
+    labelSets.push(set);
+    return (o, anchors, each = () => 1) => {
+      o = W > 760 ? o : 0;
+      if (o !== set.on) { el.style.opacity = o.toFixed(3); set.on = o; }
+      if (o === 0) return;
+      camera.updateMatrixWorld();
+      const s = clamp(W / 1440, 0.75, 1);
+      layout.forEach(([dx, dy, side], i) => {
+        anchor.copy(anchors[i]).project(camera);
+        const x = (anchor.x + 1) / 2 * W, y = (1 - anchor.y) / 2 * H, ex = x + dx * s, ey = y + dy * s, L = set.lines[i];
+        L.setAttribute('x1', x.toFixed(1)); L.setAttribute('y1', y.toFixed(1)); L.setAttribute('x2', ex.toFixed(1)); L.setAttribute('y2', ey.toFixed(1));
+        set.dots[i].setAttribute('cx', x.toFixed(1)); set.dots[i].setAttribute('cy', y.toFixed(1));
+        set.els[i].style.transform = `translate(${(ex + 10 * side).toFixed(1)}px, ${ey.toFixed(1)}px) translate(${side > 0 ? 0 : -100}%, -50%)`;
+        const seen = x > W * 0.38 && x < W * 0.96 && ey > H * 0.1 && ey < H * 0.86 ? each(i) : 0; // clear of the nav pill and the stop list
+        set.els[i].style.opacity = L.style.opacity = set.dots[i].style.opacity = seen.toFixed(3);
+      });
+    };
+  };
+  const cableLabels = labels('.cable-notes', [[-110, -40, -1], [120, -30, 1], [120, 40, 1], [110, 30, 1]]);
+  const cpuLabels = labels('.cpu-notes', [[-120, -70, -1], [-150, 130, -1], [-70, 95, -1]]);
+  function annotateLater() {
+    cableLabels(cpart('notes', 'linear') * (1 - seg(fullP, CABLE_END - 0.03, CABLE_END)), cable.anchors);
+    const lidK = seg(fullP, ...CPU_PARTS.lid);
+    cpuLabels(seg(fullP, ...CPU_PARTS.notes), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0, 0.3) : i === 1 ? seg(lidK, 0.7, 1) : 1)); // the lid's label leaves with it; the die's waits for it to show
   }
 
   const gauge = document.querySelector('.gauge'), gaugeEls = [...gauge.querySelectorAll('.note')];
@@ -397,7 +416,7 @@ if (renderer) {
     let idx = 0; TEXT_RIG.forEach(([, t], i) => { if (p >= t) idx = i; });
     if (textIdx === -2 || idx === textIdx) return; textIdx = idx;
     groups.forEach((g, i) => { g.dataset.state = i === idx ? 'on' : i < idx ? 'after' : 'before'; g.inert = i !== idx; });
-    const here = idx >= 3 ? 'cable' : idx === 2 ? 'switch' : 'key'; let past = true;
+    const here = ['key', 'key', 'switch', 'cable', 'processor'][idx]; let past = true;
     stopEls.forEach((li) => { const cur = li.dataset.stop === here; if (cur) past = false; li.toggleAttribute('aria-current', cur); if (cur) li.setAttribute('aria-current', 'step'); li.toggleAttribute('data-past', past && !cur); });
   }
   let shut = null;
@@ -419,7 +438,7 @@ if (renderer) {
   }
   function resize() {
     W = stage.clientWidth; H = stage.clientHeight;
-    renderer.setSize(W, H, false); camera.aspect = W / H; dirty = true; notesOn = -1; gaugeOn = -1; cnotesOn = -1;
+    renderer.setSize(W, H, false); camera.aspect = W / H; dirty = true; notesOn = -1; gaugeOn = -1; labelSets.forEach((l) => { l.on = -1; });
   }
   addEventListener('resize', () => { resize(); clearTimeout(resize.t); resize.t = setTimeout(() => { split(); textIdx = -1; }, 150); });
   addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' || reduced) return; pointer.x = e.clientX / innerWidth - 0.5; pointer.y = e.clientY / innerHeight - 0.5; }, { passive: true });
@@ -450,7 +469,7 @@ if (renderer) {
     setShut(op);
     const dist = rig(sp, now);
     trailLive = pose(op, now, dist);
-    annotate(op); annotateCable();
+    annotate(op); annotateLater();
     measure(op);
     const r = 1 - seg(op, 0.18, 0.3); // how much of the room's light is in play; all of it fades on the push-in, no step in the key lighting
     lamp.intensity = LAMP_CD * r; bounce.intensity = 0.36 * r;
@@ -479,7 +498,7 @@ if (renderer) {
   bakeShadows();
   Promise.race([Promise.all(waiting), new Promise((r) => setTimeout(r, 6000))]).then(() => { root.classList.add('lit'); dirty = true; window.__loaded = true; });
   // Shaders for the later stops compile in the background now, so the first scroll into them never stalls on it.
-  requestAnimationFrame(() => { cable.group.visible = true; const done = () => { cable.group.visible = false; dirty = true; };
+  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = true; const done = () => { cable.group.visible = cpu.group.visible = false; dirty = true; };
     (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).then(done, done); });
   running = false; start();
   document.fonts?.ready.then(() => {
