@@ -3,7 +3,7 @@
    round itself. Pulses ride the data pair. Real scale: one unit is about 10 mm, so the lead is about 4 mm across. */
 import * as THREE from 'three';
 
-const R_SLEEVE = 0.21, R_JACKET = 0.168, R_WIRE = 0.04;
+const R_SLEEVE = 0.21, R_JACKET = 0.168, R_WIRE = 0.038;
 // Arc-length places along the lead (0..1) where the braid and the jacket are cut back.
 const BRAID = [0.447, 0.5855], JACKET = [0.461, 0.5575];
 export const UNDER_SWITCH = 0.2285, RIDE_END = 0.535; // where the bead lands on the lead, and where it is when the stop ends
@@ -62,7 +62,7 @@ export function buildCable(o: CableOptions): Cable {
     const m = new THREE.Mesh(g, mat); group.add(m); return m;
   };
   const sleeve = o.sleeve.clone(); sleeve.transparent = false; sleeve.bumpScale = 0.7; sleeve.bumpMap = o.sleeve.bumpMap; sleeve.color.set(0xc4b79e); sleeve.sheen = 0.7;
-  const jacket = new THREE.MeshPhysicalMaterial({ color: 0x1c1a18, roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.4 });
+  const jacket = new THREE.MeshPhysicalMaterial({ color: 0x2b2622, roughness: 0.38, clearcoat: 0.45, clearcoatRoughness: 0.32, sheen: 0.4, sheenColor: 0x8a6e52 });
   tube(0, BRAID[0]!, R_SLEEVE, sleeve, 30); tube(BRAID[1]!, 1, R_SLEEVE, sleeve, 30);
   tube(BRAID[0]! - 0.004, JACKET[0]!, R_JACKET, jacket, 30); tube(JACKET[1]!, BRAID[1]! + 0.004, R_JACKET, jacket, 30);
   // Clean cut faces: an annulus where each layer ends, so the cut reads as a section through a solid cable.
@@ -79,58 +79,70 @@ export function buildCable(o: CableOptions): Cable {
   cut(JACKET[0]! - 0.0005, R_JACKET - 0.02, 0, filler, 1); cut(JACKET[1]! + 0.0005, R_JACKET - 0.02, 0, filler, -1);
   // Where the braid is cut, its strands spring out a little: short fibres, slightly splayed, uneven in length.
   const strandGeo = new THREE.CylinderGeometry(0.0055, 0.0055, 1, 4, 1); strandGeo.translate(0, 0.5, 0);
-  const fray = new THREE.InstancedMesh(strandGeo, sleeve, 140); group.add(fray);
+  const fray = new THREE.InstancedMesh(strandGeo, sleeve, 320); group.add(fray);
   { const r = (() => { let s = 31; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })(), d = new THREE.Object3D(), t = new THREE.Vector3(), sd = new THREE.Vector3(), up = new THREE.Vector3(), q = new THREE.Quaternion();
-    for (let i = 0; i < 140; i++) {
+    for (let i = 0; i < 320; i++) {
       const end = i % 2, u = BRAID[end]!, dir = end ? -1 : 1, a = r() * Math.PI * 2; frame(u, t, sd, up);
       spine.getPointAt(u, d.position); d.position.addScaledVector(sd, Math.cos(a) * (R_SLEEVE - 0.012)).addScaledVector(up, Math.sin(a) * (R_SLEEVE - 0.012));
       const out = sd.clone().multiplyScalar(Math.cos(a)).addScaledVector(up, Math.sin(a)), aim = t.clone().multiplyScalar(dir).addScaledVector(out, 0.2 + r() * 0.45).normalize();
-      q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), aim); d.quaternion.copy(q); d.scale.set(1, 0.012 + r() * r() * 0.07, 1); d.updateMatrix(); fray.setMatrixAt(i, d.matrix);
+      q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), aim); d.quaternion.copy(q); d.scale.set(1, 0.008 + r() * r() * 0.05, 1); d.updateMatrix(); fray.setMatrixAt(i, d.matrix);
     } }
 
   /* ---------- the wires in the window: insulation in the scene's palette, bare copper seen only at the cut ends ---------- */
   const insul = (c: number) => new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.4, clearcoat: 0.35, clearcoatRoughness: 0.3, envMapIntensity: 0.8 });
-  const span = [JACKET[0]! - 0.002, JACKET[1]! + 0.002] as const;
+  const span = [JACKET[0]! - 0.002, JACKET[1]! + 0.002] as const, spanLen = (span[1] - span[0]) * L;
+  // Where the wires leave the jacket they sit in its shadow: darken the first and last few millimetres.
+  function contact(mat: THREE.MeshPhysicalMaterial) {
+    const prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = (sh, r) => {
+      prev.call(mat, sh, r);
+      if (!sh.vertexShader.includes('vAlong')) sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vAlong;').replace('#include <begin_vertex>', `#include <begin_vertex>\nvAlong = uv.x * ${spanLen.toFixed(3)};`);
+      if (!sh.fragmentShader.includes('varying float vAlong')) sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAlong;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>\ndiffuseColor.rgb *= mix(0.3, 1.0, smoothstep(0.0, 0.5, vAlong) * smoothstep(0.0, 0.5, ${spanLen.toFixed(3)} - vAlong));`);
+    };
+    return mat;
+  }
   const wireMesh = (c: THREE.Curve<THREE.Vector3>, mat: THREE.Material) => {
     const g = new THREE.TubeGeometry(new Sub(c, span[0], span[1], true), Math.round((span[1] - span[0]) * L * 90), R_WIRE, 20, false);
     const m = new THREE.Mesh(g, mat); group.add(m); return m;
   };
-  const DATA_R = 0.043; // the data pair twists about a centre line, below and in front of the spine
-  const dataA = wire(0.02, -0.05, 1, 0, DATA_R), dataB = wire(0.02, -0.05, 1, Math.PI, DATA_R);
-  const powerA = wire(-0.075, 0.08), powerB = wire(0.075, 0.085);
+  const DATA_R = 0.04; // the data pair twists about the middle; power sits above it and ground below, so all four show from the side
+  const dataA = wire(0.01, -0.01, 1, 0, DATA_R), dataB = wire(0.01, -0.01, 1, Math.PI, DATA_R);
+  const powerA = wire(0.0, 0.112), powerB = wire(0.02, -0.128);
   const dataMatA = insul(0xe2d6c0), dataMatB = insul(0xa8916a);
   wireMesh(dataA, dataMatA); wireMesh(dataB, dataMatB);       // the data pair: ivory and gold
-  wireMesh(powerA, insul(0x1d1b19)); wireMesh(powerB, insul(0x9a6a48));     // power and ground: carbon and copper
+  wireMesh(powerA, contact(insul(0x1d1b19))); wireMesh(powerB, contact(insul(0x5a4434)));     // power above, ground below: carbon and coffee
 
   /* ---------- pulses: the data pair's insulation lights in moving packets of bits ---------- */
   // The pair carries the signal as opposites: where one wire is lit the other is dark, and the receiver reads the
   // difference. Each wire's material reads one shared flow value, so this costs no extra draw.
-  const uFlow = { value: 0 }, uGlow = { value: 0 }, wireLen = (span[1] - span[0]) * L;
+  const uFlow = { value: 0 }, uGlow = { value: 0 }, wireLen = spanLen;
   const signal = (mat: THREE.MeshPhysicalMaterial, invert: boolean) => {
     mat.emissive.set(0xffc27a);
-    mat.onBeforeCompile = (sh) => {
+    const prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = (sh, r) => {
+      prev.call(mat, sh, r); // adds vAlong (the contact shadow)
       sh.uniforms.uFlow = uFlow; sh.uniforms.uGlow = uGlow;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vAlong;').replace('#include <begin_vertex>', `#include <begin_vertex>\nvAlong = uv.x * ${wireLen.toFixed(3)};`);
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uFlow; uniform float uGlow; varying float vAlong;')
+        .replace('#include <common>', '#include <common>\nuniform float uFlow; uniform float uGlow;')
         .replace('#include <lights_fragment_begin>', `
           float x = vAlong - uFlow, packet = floor(x / 2.6), inPacket = step(fract(x / 2.6), 0.62); // packets of bits with quiet gaps
           float cell = floor(x / 0.07), bit = step(0.42, fract(sin(cell * 12.9898 + packet * 78.233) * 43758.5453));
-          float edge = smoothstep(0.0, 0.18, fract(x / 0.07)) * smoothstep(0.0, 0.18, 1.0 - fract(x / 0.07));
+          float edge = smoothstep(0.0, 0.5, fract(x / 0.07)) * smoothstep(0.0, 0.5, 1.0 - fract(x / 0.07)); // soft-edged: each bit swells and fades
           float round_ = 0.25 + 0.75 * pow(max(dot(normal, normalize(vViewPosition)), 0.0), 1.6); // brightest facing the eye, so the glow keeps the wire round
           float lit = inPacket * ${invert ? '(1.0 - bit)' : 'bit'} * edge;
-          totalEmissiveRadiance *= lit * round_ * uGlow * 1.1;
+          totalEmissiveRadiance *= lit * round_ * uGlow * 1.3;
           #include <lights_fragment_begin>`);
     };
-    mat.customProgramCacheKey = () => (invert ? 'cable-b' : 'cable-a');
+    mat.customProgramCacheKey = () => (invert ? 'cable-b2' : 'cable-a2');
     return mat;
   };
-  signal(dataMatA, false); signal(dataMatB, true);
+  signal(contact(dataMatA), false); signal(contact(dataMatB), true);
   const setFlow = (flow: number, glow: number) => { uFlow.value = flow * wireLen * 2; uGlow.value = glow; };
 
   group.traverse((m) => { if ((m as THREE.Mesh).isMesh) m.castShadow = m.receiveShadow = true; });
   const beadAt = (u: number, out: THREE.Vector3) => (u < span[0] || u > span[1] ? spine.getPointAt(u, out).addScaledVector(uv.set(0, 1, 0), R_SLEEVE + 0.02) : dataA.getPoint(u, out));
   const mid = (JACKET[0]! + JACKET[1]!) / 2;
-  const anchors = { braid: spine.getPointAt(BRAID[0]! - 0.006).add(new THREE.Vector3(0, R_SLEEVE * 0.9, 0)), pair: dataA.getPoint(mid - 0.035), power: powerA.getPoint(mid - 0.005).lerp(powerB.getPoint(mid - 0.005), 0.5) };
+  const anchors = { braid: spine.getPointAt(BRAID[0]! - 0.006).add(new THREE.Vector3(0, R_SLEEVE * 0.9, 0)), pair: dataA.getPoint(mid - 0.035), power: powerA.getPoint(mid + 0.012) };
   return { group, beadAt, setFlow, anchors, spine };
 }

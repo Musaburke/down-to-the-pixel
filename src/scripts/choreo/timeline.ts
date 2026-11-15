@@ -41,10 +41,10 @@ export const SPAN = 250 / 350;
 export const pre = (p: number): number => Math.min(1, p / SPAN);
 const after = (t: number): number => SPAN + t * (1 - SPAN); // 0..1 across the cable's share of the travel
 export const CABLE_SHOTS: Shot[] = [
-  { id: 'drop',       t: after(0.26), pos: [2.6, -2.2, 9.5],   target: [1.6, -3.9, 0],    fov: 26, roll: -2, ease: 'inOut'  }, // follows the bead down out of the switch onto the lead
-  { id: 'run',        t: after(0.46), pos: [7.6, -4.3, 5.2],   target: [12, -6.55, 0],     fov: 28, roll: 1,  ease: 'inOut'  }, // tracks along the braid towards the cut
+  { id: 'drop',       t: after(0.26), pos: [2.6, -2.4, 9.5],   target: [1.6, -4.7, 0],    fov: 26, roll: 0,  ease: 'inOut'  }, // follows the bead down out of the switch onto the lead
+  { id: 'run',        t: after(0.46), pos: [7.6, -4.3, 5.2],   target: [12, -6.9, 0],      fov: 28, roll: 1,  ease: 'inOut'  }, // tracks along the braid towards the cut
   { id: 'cable',      t: after(0.66), pos: [13.4, -4.7, 4.3],   target: [17.6, -6.4, 0],   fov: 30, roll: 3,  ease: 'inOut'  }, // low beside the cutaway, rolled a few degrees
-  { id: 'cable-hold', t: 1,           pos: [17.6, -4.75, 4.1],  target: [21.6, -6.8, 0],   fov: 30, roll: 3,  ease: 'linear' }, // tracks along the wire with the pulses
+  { id: 'cable-hold', t: 1,           pos: [20.6, -4.95, 3.7],  target: [24.2, -6.75, 0],  fov: 30, roll: 3,  ease: 'linear' }, // tracks along the wire with the pulses
 ];
 // Cable parts, in full progress p.
 export const CABLE_PARTS: Record<string, [number, number]> = {
