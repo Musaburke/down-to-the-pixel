@@ -103,14 +103,16 @@ export const PX_PARTS: Record<string, [number, number]> = {
   flare:  [inPx(0.86), inPx(0.98)], // and the pixel flares as it lands
   notes:  [inPx(0.8), inPx(0.88)],  // labels on the three lights
 };
-// The ending: straight back up the same line of sight until the whole M glows small on the dark screen, the closing
-// words beside it.
+// The ending: straight back up the same line of sight until the whole M glows on a dark screen with a cursor blinking
+// after it, the closing words beside it. Aimed a little right of the M so the cursor is in frame too.
 export const END_SHOTS: Shot[] = [
-  { id: 'back', t: inEnd(0.55), pos: [9.0, -37.7, -3.0], target: [9.0, -48, -7.6], fov: 32, roll: 0, ease: 'inOut'  }, // the whole letter on the screen
-  { id: 'rest', t: 1,           pos: [9.0, -37.5, -2.9], target: [9.0, -48, -7.6], fov: 32, roll: 0, ease: 'linear' }, // dwell
+  { id: 'back', t: inEnd(0.55), pos: [9.5, -37.7, -3.0], target: [9.5, -48, -7.6], fov: 32, roll: 0, ease: 'inOut'  }, // the whole letter on the screen
+  { id: 'rest', t: 1,           pos: [9.5, -37.5, -2.9], target: [9.5, -48, -7.6], fov: 32, roll: 0, ease: 'linear' }, // dwell
 ];
 export const END_PARTS: Record<string, [number, number]> = {
   regroup: [inEnd(0.05), inEnd(0.4)], // each pixel closes back into one warm square; the neighbours come back up
+  widen:   [inEnd(0.3), inEnd(0.65)], // the screen runs on past the frame
+  caret:   [inEnd(0.6), inEnd(0.7)],  // a text cursor appears after the M, then blinks
 };
 // Cable parts, in full progress p.
 export const CABLE_PARTS: Record<string, [number, number]> = {

@@ -334,6 +334,8 @@ if (renderer) {
       gfx.set(seg(fullP, ...GFX_PARTS.draw), seg(fullP, ...GFX_PARTS.grid), seg(fullP, ...GFX_PARTS.fill));
       const regroup = THREE.MathUtils.smoothstep(seg(fullP, ...END_PARTS.regroup), 0, 1); // the ending: back to one warm square per pixel, neighbours up again
       gfx.screen(seg(fullP, ...PX_PARTS.screen), 1 - THREE.MathUtils.smoothstep(seg(fullP, ...PX_PARTS.split), 0, 1) * (1 - regroup), Math.sin(Math.PI * seg(fullP, ...PX_PARTS.flare)), seg(fullP, PX_PARTS.flare[0] - 0.02, PX_PARTS.flare[0] + 0.03) * (1 - regroup)); // stop 6
+      const blink = reduced || pinnedP !== null ? 1 : THREE.MathUtils.smoothstep(Math.cos(now * 0.0059), -0.15, 0.15); // a steady on-off, soft-edged; still under reduced motion
+      gfx.ending(seg(fullP, ...END_PARTS.widen), seg(fullP, ...END_PARTS.caret), seg(fullP, ...END_PARTS.caret) < 1 ? 1 : blink);
     }
     if (fullP > PX_PARTS.bead[0]) { const b = seg(fullP, ...PX_PARTS.bead); beadAt.lerpVectors(beadFrom, pxCentre, 1 - Math.pow(1 - b, 2)).y += 0.02; } // the message comes down into the pixel
     const fl = reduced ? 0 : Math.pow(Math.sin(Math.PI * seg(fullP, ...GFX_PARTS.flash)), 2) * 0.92;
@@ -550,13 +552,13 @@ if (renderer) {
   // compiled every part is drawn once, culling off, and the real frame is drawn straight over it in the same task.
   const warm = () => {
     const culled = [];
-    gfx.screenMesh.visible = true;
+    gfx.late.forEach((m) => { m.visible = true; });
     [cable.group, cpu.group, gfx.group].forEach((g) => { g.visible = true; g.traverse((o) => { if (o.isMesh && o.frustumCulled) { culled.push(o); o.frustumCulled = false; } }); });
     renderer.render(scene, camera);
-    culled.forEach((o) => { o.frustumCulled = true; }); gfx.screenMesh.visible = false;
+    culled.forEach((o) => { o.frustumCulled = true; }); gfx.late.forEach((m) => { m.visible = false; });
     cable.group.visible = fullP > SPAN + 0.005 && fullP < inCpu(0.6); cpu.group.visible = fullP > CABLE_END - 0.05 && camPos.y > BOARD_Y - 0.3; gfx.group.visible = fullP > inGfx(0.12); renderer.render(scene, camera); // as pose() left them
   };
-  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = gfx.group.visible = gfx.screenMesh.visible = true; const done = () => { cable.group.visible = cpu.group.visible = gfx.group.visible = gfx.screenMesh.visible = false; dirty = true; requestAnimationFrame(() => { warm(); upload(); }); };
+  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = gfx.group.visible = true; gfx.late.forEach((m) => { m.visible = true; }); const done = () => { cable.group.visible = cpu.group.visible = gfx.group.visible = false; gfx.late.forEach((m) => { m.visible = false; }); dirty = true; requestAnimationFrame(() => { warm(); upload(); }); };
     (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).then(done, done); });
   running = false; start();
   document.fonts?.ready.then(() => {

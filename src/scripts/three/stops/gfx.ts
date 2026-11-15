@@ -85,8 +85,10 @@ export interface Gfx {
   screen: (on: number, mix: number, flare: number, focus: number) => void;
   /** Where each of the target pixel's three lights is, red, green, blue. */
   lights: THREE.Vector3[];
-  /** The screen mesh, which stays hidden until stop 6; the warm-up shows it for its passes. */
-  screenMesh: THREE.Mesh;
+  /** The ending: the screen widens past the frame (0..1); the cursor appears (0..1) and blinks (0..1). */
+  ending: (widen: number, caret: number, blink: number) => void;
+  /** Meshes that stay hidden until the last stops; the warm-up shows them for its passes. */
+  late: THREE.Mesh[];
   /** Where the pen is along the outline, 0..1. */
   penAt: (u: number, out: THREE.Vector3) => THREE.Vector3;
   /** Redo the letter once the typeface has loaded, so it matches the keycap. */
@@ -156,6 +158,22 @@ export function buildGfx(): Gfx {
   screenMat.customProgramCacheKey = () => 'gfx-screen';
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(S, S), screenMat); screen.rotation.x = -Math.PI / 2; screen.position.set(DRAW.x, top + 0.002, DRAW.z); screen.visible = false; screen.renderOrder = 3; group.add(screen);
 
+  // The ending: the screen widens past the frame (a large matte panel fades in over the plate's bronze edge), and a
+  // text cursor of lit pixels blinks just after the M, as if the letter had just been typed.
+  const display = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshPhysicalMaterial({ color: 0x060504, roughness: 0.7, specularIntensity: 0.25, envMapIntensity: 0.3, transparent: true, opacity: 0, depthWrite: false }));
+  display.rotation.x = -Math.PI / 2; display.position.set(DRAW.x, top + 0.001, DRAW.z); display.renderOrder = 2; display.visible = false; group.add(display);
+  const CARET = 17, caretMat = new THREE.MeshBasicMaterial({ color: 0xffe2b6, transparent: true, opacity: 0, depthWrite: false });
+  caretMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vCaretUv;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvCaretUv = uv;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vCaretUv;\nfloat sdRB(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }')
+      .replace('#include <opaque_fragment>', `vec2 g = vCaretUv * vec2(1.0, ${CARET}.0), f = fract(g); float aa = fwidth(g.y) * 1.2;
+        outgoingLight *= (1.0 - smoothstep(-aa, aa, sdRB(f - 0.5, vec2(0.43), 0.1))) * 0.62; // the same warm square as the M's pixels
+        #include <opaque_fragment>`);
+  };
+  caretMat.customProgramCacheKey = () => 'gfx-caret';
+  const caret = new THREE.Mesh(new THREE.PlaneGeometry(PITCH, PITCH * CARET), caretMat);
+  caret.rotation.x = -Math.PI / 2; caret.position.set(DRAW.x + (CELLS + 0.5 - (CELLS - 1) / 2) * PITCH, top + 0.003, DRAW.z); caret.renderOrder = 4; caret.visible = false; group.add(caret);
+
   // The outline: a fine gold line traced point to point, with a bright head where the pen is, and the points
   // themselves (the corners stored in the font) as small studs that appear as it reaches them.
   const uDraw = { value: 0 }, uFade = { value: 1 };
@@ -222,8 +240,12 @@ export function buildGfx(): Gfx {
     uMix.value = mix; uFlare.value = flare; uFocus.value = focus;
     if (on > 0) { plateMat.emissiveIntensity *= 1 - on; uFade.value *= 1 - on; }
   };
+  const ending = (widen: number, caretK: number, blink: number) => {
+    (display.material as THREE.MeshPhysicalMaterial).opacity = widen; display.visible = widen > 0.001;
+    caretMat.opacity = caretK * blink; caret.visible = caretMat.opacity > 0.001;
+  };
   const tx = DRAW.x + (TARGET.i - (CELLS - 1) / 2) * PITCH, tz = DRAW.z + (TARGET.j - (CELLS - 1) / 2) * PITCH;
   const lights = [-1, 0, 1].map((k) => new THREE.Vector3(tx + k * PITCH / 3, top + 0.003, tz + PITCH * 0.36)); // the lower end of each stripe
   const penAt = (u: number, out: THREE.Vector3) => out.copy(path.curves.length ? path.getPointAt(THREE.MathUtils.clamp(u, 0, 1)) : DRAW).setY(top + 0.09);
-  return { group, set, screen: screenOn, lights, screenMesh: screen, penAt, redraw, anchors };
+  return { group, set, screen: screenOn, ending, lights, late: [screen, display, caret], penAt, redraw, anchors };
 }
