@@ -23,7 +23,7 @@
   --step-hero: clamp(52px, 5vw, 72px);
   --step-head: clamp(36px, 3.3vw, 52px);
   --step-body: clamp(17px, 1.2vw, 19px);
-  --walk: 450vh;       /* total height (pinned travel = walk - 100vh): 350vh. The opening and the approved shots keep their 250vh; the cable stop has the last 100vh */
+  --walk: 500vh;       /* total height (pinned travel = walk - 100vh): 400vh. The opening and the approved shots keep their 250vh; the cable stop has the last 150vh */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --gutter-l: max(16px, env(safe-area-inset-left, 0px));
   --gutter-r: max(16px, env(safe-area-inset-right, 0px));
@@ -58,7 +58,11 @@ p { max-width: 34ch; text-wrap: pretty; }
 /* Live: the section pins a full-screen stage and the panel holds one group at a time. */
 .live .walk { height: var(--walk); }
 .live .stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
-.live .stage canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 700ms var(--ease-out); }
+/* The opening frame as a still, there from the first paint; the live scene fades in over it. Its centre sits where the
+   camera puts the subject (69% across, from the view offset), and it scales by height like the camera's lens does. */
+.live .stage { background: var(--canvas) url("/poster/desk-wide.webp") 69% 50% / auto 100% no-repeat; }
+@media (max-width: 760px) { .live .stage { background-image: url("/poster/desk-tall.webp"); background-position: 50% 50%; background-size: cover; } }
+.live .stage canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 500ms var(--ease-out); }
 .live.lit .stage canvas { opacity: 1; } /* the scene fades up once its textures have arrived */
 .pinned .stage canvas, .still .stage canvas { transition: none; }
 /* Stage atmosphere: a static vignette and a fine grain tile, both still. */

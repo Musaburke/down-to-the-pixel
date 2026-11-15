@@ -35,22 +35,23 @@ export const ROOM_SHOTS: Shot[] = [
   { id: 'desk-hold', t: 0.06, pos: [41, 24, 50], target: [5, -1, -4],   fov: 30, roll: 0, ease: 'linear' }, // dwell, slow creep
   { id: 'desk-in',   t: 0.13, pos: [17, 13, 21], target: [2, 0.2, -1.5], fov: 34, roll: 0, ease: 'inOut'  }, // closing on the M, on the line into the hero
 ];
-// Cable stop (15 Nov 2026): the pinned travel grows from 250vh to 350vh. Everything above runs over the first
+// Cable stop (15 Nov 2026): the pinned travel grows from 250vh to 400vh. Everything above runs over the first
 // SPAN of it, so the approved shots keep exactly their scroll distance; `pre(p)` reads progress in those units.
-export const SPAN = 250 / 350;
+export const SPAN = 250 / 400;
 export const pre = (p: number): number => Math.min(1, p / SPAN);
 const after = (t: number): number => SPAN + t * (1 - SPAN); // 0..1 across the cable's share of the travel
-export const CABLE_SHOTS: Shot[] = [
-  { id: 'drop',       t: after(0.26), pos: [2.6, -2.4, 9.5],   target: [1.6, -4.7, 0],    fov: 26, roll: 0,  ease: 'inOut'  }, // follows the bead down out of the switch onto the lead
-  { id: 'run',        t: after(0.46), pos: [7.6, -4.3, 5.2],   target: [12, -6.9, 0],      fov: 28, roll: 1,  ease: 'inOut'  }, // tracks along the braid towards the cut
-  { id: 'cable',      t: after(0.66), pos: [13.4, -4.7, 4.3],   target: [17.6, -6.4, 0],   fov: 30, roll: 3,  ease: 'inOut'  }, // low beside the cutaway, rolled a few degrees
-  { id: 'cable-hold', t: 1,           pos: [20.6, -4.95, 3.7],  target: [24.2, -6.75, 0],  fov: 30, roll: 3,  ease: 'linear' }, // tracks along the wire with the pulses
+export const CABLE_SHOTS: Shot[] = [ // the lead falls straight down, so the camera travels down with the scroll
+  { id: 'drop',  t: after(0.16), pos: [3.0, -2.0, 9.0],  target: [0.3, -4.2, 0],  fov: 28, roll: 0, ease: 'inOut'  }, // follows the bead out of the switch onto the lead
+  { id: 'run',   t: after(0.36), pos: [2.2, -6.6, 5.0],  target: [0.2, -8.6, 0],  fov: 30, roll: 0, ease: 'inOut'  }, // down the braid
+  { id: 'strip', t: after(0.56), pos: [1.7, -10.3, 3.7], target: [0.15, -11.6, 0], fov: 30, roll: 0, ease: 'inOut'  }, // the stepped cut: braid, jacket, foil
+  { id: 'wires', t: after(0.76), pos: [1.7, -14.5, 3.7], target: [0.15, -15.8, 0], fov: 30, roll: 0, ease: 'inOut'  }, // the twisted pair carrying the bits
+  { id: 'plug',  t: 1,           pos: [2.4, -22.4, 5.8], target: [0.3, -25.4, 0], fov: 30, roll: 0, ease: 'linear' }, // into the plug
 ];
 // Cable parts, in full progress p.
 export const CABLE_PARTS: Record<string, [number, number]> = {
-  beadDrop: [after(0.04), after(0.3)],  // bead leaves the contacts and falls to the cable
-  ride:     [after(0.26), 1],            // bead and pulses run along the data pair
-  notes:    [after(0.56), after(0.7)],   // engraved labels arrive with the camera
+  beadDrop: [after(0.02), after(0.2)], // bead leaves the contacts and falls onto the lead
+  ride:     [after(0.16), 1],          // bits run along the data pair
+  notes:    [after(0.45), after(0.55)], // engraved labels arrive as the stripped section comes into view
 };
 export const RIG: Shot[] = [...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease })), ...CABLE_SHOTS]
   .map((s): Shot => (CABLE_SHOTS.includes(s) ? s : { ...s, t: s.t * SPAN }));

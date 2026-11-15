@@ -6,7 +6,7 @@ import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from
 import { roundBox, strip, boxUV } from './three/geometry.ts';
 import { DESK_Y, BOARD, CAP, capGeo, decalGeo, sculpt, buildBoard } from './three/stops/board.ts';
 import { buildCorner } from './three/stops/corner.ts';
-import { buildCable, UNDER_SWITCH, RIDE_END } from './three/stops/cable.ts';
+import { buildCable } from './three/stops/cable.ts';
 import { split as splitText } from './text.ts';
 
 const root = document.documentElement;
@@ -264,8 +264,10 @@ if (renderer) {
   }
 
   /* ---------- stop 3: the cable ---------- */
-  const cable = buildCable({ sleeve: sleeveMat }); scene.add(cable.group); cable.group.visible = false;
-  const cableRim = new THREE.DirectionalLight(0xffd2a0, 0); cableRim.position.set(26, -1, -12); cableRim.target.position.set(14, -5.8, 0); scene.add(cableRim, cableRim.target); // warm edge light from behind, for the lead only
+  const plugWood = physical({ color: 0xffffff, roughness: 1, clearcoat: 0.25, clearcoatRoughness: 0.42 }); // the plug's own material (the desk's is sunk into the dark by now), on the case's textures so nothing uploads twice
+  Promise.all(waiting).then(() => { plugWood.map = woodMat.map; plugWood.normalMap = woodMat.normalMap; plugWood.roughnessMap = woodMat.roughnessMap; if (woodMat.normalMap) plugWood.normalScale.set(1.3, 1.3); plugWood.needsUpdate = true; });
+  const cable = buildCable({ sleeve: sleeveMat, wood: plugWood, brass: physical({ color: 0xd2bd8f, metalness: 0.7, roughness: 0.4, envMapIntensity: 2, normalMap: pbt, normalScale: new THREE.Vector2(0.03, 0.03) }) }); scene.add(cable.group); cable.group.visible = false;
+  const cableRim = new THREE.DirectionalLight(0xffd2a0, 0); cableRim.position.set(7, -6, -11); cableRim.target.position.set(0, -14, 0); scene.add(cableRim, cableRim.target); // warm edge light from behind, for the lead only
   const cpart = (k, ease = 'inOut') => { const [a, b] = CABLE_PARTS[k], x = seg(fullP, a, b); return ease === 'linear' ? x : x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
   let fullP = 0;
 
@@ -304,8 +306,9 @@ if (renderer) {
     const j = part(p, 'beadJump');
     if (j > 0) { beadAt.x = lerp(v2.x, contactB.position.x + 0.05, j); beadAt.y = lerp(v2.y, contactB.position.y + 0.64, j) + Math.sin(j * Math.PI) * 0.3; }
     if (fullP > SPAN) { // stop 3: the bead falls out of the switch onto the lead, then rides the data pair
-      const drop = cpart('beadDrop'), ride = cpart('ride', 'linear'), u = UNDER_SWITCH + (RIDE_END - UNDER_SWITCH) * (1 - (1 - ride) * (1 - ride));
-      cable.beadAt(u, v1); if (drop < 1) beadAt.lerp(cable.beadAt(UNDER_SWITCH, v2), drop); else beadAt.copy(v1);
+      const drop = cpart('beadDrop'), ride = cpart('ride', 'linear');
+      cable.beadAt(cable.uAt(Math.min(-2.3, camTgt.y - 0.9)), v1); // rides a little ahead of where the camera looks, so it leads the way down
+      if (drop < 1) beadAt.lerp(v1, drop); else beadAt.copy(v1);
       cable.setFlow(ride * 0.5 + (reduced || pinnedP !== null ? 0 : now * 0.000035), seg(fullP, CABLE_PARTS.ride[0], CABLE_PARTS.ride[0] + 0.06));
     } else cable.setFlow(0, 0);
     cable.group.visible = fullP > SPAN + 0.005; cableRim.intensity = 2.4 * seg(fullP, SPAN, SPAN + 0.08);
@@ -358,7 +361,7 @@ if (renderer) {
     if (o === 0) return;
     camera.updateMatrixWorld();
     const s = clamp(W / 1440, 0.75, 1);
-    [[cable.anchors.braid, [40, -120], 1], [cable.anchors.pair, [-30, 125], -1], [cable.anchors.power, [-40, -120], -1]].forEach(([a, [dx, dy], side], i) => {
+    [[-110, -40, -1], [120, -30, 1], [120, 40, 1], [110, 30, 1]].forEach(([dx, dy, side], i) => { const a = cable.anchors[i];
       anchor.copy(a).project(camera);
       const x = (anchor.x + 1) / 2 * W, y = (1 - anchor.y) / 2 * H, ex = x + dx * s, ey = y + dy * s;
       const L = cnoteLines[i]; L.setAttribute('x1', x.toFixed(1)); L.setAttribute('y1', y.toFixed(1)); L.setAttribute('x2', ex.toFixed(1)); L.setAttribute('y2', ey.toFixed(1));
