@@ -35,6 +35,10 @@ No figures. The copy says the keyboard driver reads the key's code and the syste
 
 No figures. Claims, all standard: the graphics processor is often part of the same chip as the main processor (integrated graphics); fonts store letters as outlines of points joined by lines and curves (TrueType/OpenType), so they scale cleanly; text is rasterised onto a pixel grid with partly covered edge pixels given in-between shades (anti-aliasing); the finished image is held in memory, one value per pixel (a frame buffer), and sent to the display repeatedly ("many times a second", no rate given). The drawing on the page is the browser's own anti-aliased rendering of the M in Schibsted Grotesk on a 20 x 20 grid, so the partly lit pixels are real coverage values, not painted. Its outline is traced from the same glyph; the studs mark the traced corners, not the font file's stored points.
 
+## The pixel (stop 6)
+
+No figures. Claims, all standard display behaviour: a colour screen pixel is made of red, green and blue subpixels (true of LCD and OLED panels; layouts vary, the drawing shows the common side-by-side stripe); their light blends at normal viewing distance into one colour; varying each one's brightness mixes a wide range of colours, all three fully on reads as white; the screen redraws the whole picture repeatedly ("many times a second", no rate given). The strengths in the drawing (red full, green 80%, blue 50%) are chosen to mix to the page's warm cream; they are illustrative, not measured from a panel.
+
 ## "Go deeper" points (all stops)
 
 No new figures; the 2 mm, 4 mm, 30 cN and 100 cN come from the CHERRY table above. The other claims are general, standard behaviour:

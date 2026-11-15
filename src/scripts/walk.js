@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx } from './choreo/timeline.ts';
+import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx, PX_PARTS, inPx } from './choreo/timeline.ts';
 import { clamp, seg, lerp, part } from './choreo/seg.ts';
 import { makeFlow } from './choreo/flow.ts';
 import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from './three/textures.ts';
@@ -274,6 +274,7 @@ if (renderer) {
   const cpu = buildCpu(); scene.add(cpu.group); cpu.group.visible = false;
   const gfx = buildGfx(); scene.add(gfx.group); gfx.group.visible = false;
   const flashEl = document.querySelector('.flash'); let flashOn = -1;
+  const pxCentre = gfx.lights[1].clone().setZ(gfx.lights[1].z - 0.24 * 0.36), beadFrom = pxCentre.clone().add(new THREE.Vector3(0, 1.4, 0.9)); // the last pixel, and where the message comes down from
   const keyAtCpu = new THREE.Vector3(CHIP.x - 5, CHIP.y + 8, CHIP.z - 6), keyAtGfx = new THREE.Vector3(DRAW.x - 5, DRAW.y + 8.5, DRAW.z - 6.5); // the processor's key light goes down with the camera, hidden by the flash
   const cpuKey = new THREE.SpotLight(0xffd3a6, 0, 0, 0.55, 1, 2); cpuKey.position.copy(keyAtCpu); cpuKey.target.position.copy(CHIP); scene.add(cpuKey, cpuKey.target); // a warm key from behind and left of the processor: a pool of light that falls off, its glare kept out of the camera's line
   const cpart = (k, ease = 'inOut') => { const [a, b] = CABLE_PARTS[k], x = seg(fullP, a, b); return ease === 'linear' ? x : x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
@@ -329,14 +330,18 @@ if (renderer) {
     cable.group.visible = fullP > SPAN + 0.005 && fullP < inCpu(0.6);
     cpu.group.visible = fullP > CABLE_END - 0.05 && camPos.y > BOARD_Y - 0.3; // gone once the camera is through the board
     gfx.group.visible = fullP > inGfx(0.12);
-    if (gfx.group.visible) gfx.set(seg(fullP, ...GFX_PARTS.draw), seg(fullP, ...GFX_PARTS.grid), seg(fullP, ...GFX_PARTS.fill));
+    if (gfx.group.visible) {
+      gfx.set(seg(fullP, ...GFX_PARTS.draw), seg(fullP, ...GFX_PARTS.grid), seg(fullP, ...GFX_PARTS.fill));
+      gfx.screen(seg(fullP, ...PX_PARTS.screen), 1 - THREE.MathUtils.smoothstep(seg(fullP, ...PX_PARTS.split), 0, 1), Math.sin(Math.PI * seg(fullP, ...PX_PARTS.flare)), seg(fullP, PX_PARTS.flare[0] - 0.02, PX_PARTS.flare[0] + 0.03)); // stop 6
+    }
+    if (fullP > PX_PARTS.bead[0]) { const b = seg(fullP, ...PX_PARTS.bead); beadAt.lerpVectors(beadFrom, pxCentre, 1 - Math.pow(1 - b, 2)).y += 0.02; } // the message comes down into the pixel
     const fl = reduced ? 0 : Math.pow(Math.sin(Math.PI * seg(fullP, ...GFX_PARTS.flash)), 2) * 0.92;
     if (Math.abs(fl - flashOn) > 0.002) { flashEl.style.opacity = fl.toFixed(3); flashOn = fl; }
     if (cpu.group.visible) cpu.set(seg(fullP, ...CPU_PARTS.lid), seg(fullP, ...CPU_PARTS.wave), seg(fullP, ...CPU_PARTS.tracks) * 0.6 + (reduced || pinnedP !== null ? 0 : now * 0.000035), seg(fullP, CPU_PARTS.tracks[0], CPU_PARTS.tracks[0] + 0.03)); cableRim.intensity = 2.4 * seg(fullP, SPAN, SPAN + 0.08);
     const shimmer = reduced ? 1 : 1 + Math.sin(now * 0.004) * 0.05 + Math.sin(now * 0.0113) * 0.03;
     const flare = 1 + 0.6 * Math.sin(Math.PI * seg(p, 0.88, 0.97));
     const size = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.1 * shimmer * flare;
-    const penUp = 1 - seg(fullP, inGfx(0.6), inGfx(0.7)); // the pen lifts away as the pixels fill
+    const penUp = Math.max(1 - seg(fullP, inGfx(0.6), inGfx(0.7)), seg(fullP, inPx(0.4), inPx(0.48)) * (1 - seg(fullP, inPx(0.86), inPx(0.93)))); // the pen lifts away as the pixels fill; back for the last pixel, gone as it lands
     bead.position.copy(beadAt); bead.scale.setScalar(size * penUp);
     let moving = false;
     trail.forEach((s, i) => {
@@ -404,13 +409,15 @@ if (renderer) {
   };
   const cableLabels = labels('.cable-notes', [[-110, -40, -1], [120, -30, 1], [-120, 40, -1], [100, 30, 1]]);
   const cpuLabels = labels('.cpu-notes', [[-200, -150, -1], [-150, 130, -1], [120, -70, 1]]);
+  const pxLabels = labels('.px-notes', [[-50, 70, -1], [0, 110, 1], [50, 70, 1]]);
   const gfxLabels = labels('.gfx-notes', [[-130, -60, -1], [10, 80, 1], [-10, -170, -1]]); // the later two in the dark below and above the plate
   function annotateLater() {
     cableLabels(cpart('notes', 'linear') * (1 - seg(fullP, CABLE_END + 0.02, CABLE_END + 0.04)), cable.anchors); // the plug's label stays until the plug is in its socket
     const lidK = seg(fullP, ...CPU_PARTS.lid);
     cpuLabels(seg(fullP, ...CPU_PARTS.notes) * (1 - seg(fullP, inGfx(0.1), inGfx(0.18))), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0.15, 0.4) : seg(lidK, 0.7, 1))); // the lid's label leaves with it; the others wait for it to clear
     const fill = seg(fullP, ...GFX_PARTS.fill);
-    gfxLabels(seg(fullP, ...GFX_PARTS.notes), gfx.anchors, (i) => (i === 0 ? 1 - seg(fill, 0.3, 0.6) : i === 1 ? seg(fullP, ...GFX_PARTS.grid) : seg(fill, 0.75, 1))); // each label arrives with its part
+    pxLabels(seg(fullP, ...PX_PARTS.notes), gfx.lights);
+    gfxLabels(seg(fullP, ...GFX_PARTS.notes) * (1 - seg(fullP, inPx(0), inPx(0.08))), gfx.anchors, (i) => (i === 0 ? 1 - seg(fill, 0.3, 0.6) : i === 1 ? seg(fullP, ...GFX_PARTS.grid) : seg(fill, 0.75, 1))); // each label arrives with its part
   }
 
   const gauge = document.querySelector('.gauge'), gaugeEls = [...gauge.querySelectorAll('.note')];
@@ -438,7 +445,7 @@ if (renderer) {
     let idx = 0; TEXT_RIG.forEach(([, t], i) => { if (p >= t) idx = i; });
     if (textIdx === -2 || idx === textIdx) return; textIdx = idx;
     groups.forEach((g, i) => { g.dataset.state = i === idx ? 'on' : i < idx ? 'after' : 'before'; g.inert = i !== idx; });
-    const here = ['key', 'key', 'switch', 'cable', 'processor', 'graphics'][idx]; let past = true;
+    const here = ['key', 'key', 'switch', 'cable', 'processor', 'graphics', 'pixel'][idx]; let past = true;
     stopEls.forEach((li) => { const cur = li.dataset.stop === here; if (cur) past = false; li.toggleAttribute('aria-current', cur); if (cur) li.setAttribute('aria-current', 'step'); li.toggleAttribute('data-past', past && !cur); });
   }
   let shut = null;
@@ -532,12 +539,13 @@ if (renderer) {
   // compiled every part is drawn once, culling off, and the real frame is drawn straight over it in the same task.
   const warm = () => {
     const culled = [];
+    gfx.screenMesh.visible = true;
     [cable.group, cpu.group, gfx.group].forEach((g) => { g.visible = true; g.traverse((o) => { if (o.isMesh && o.frustumCulled) { culled.push(o); o.frustumCulled = false; } }); });
     renderer.render(scene, camera);
-    culled.forEach((o) => { o.frustumCulled = true; });
+    culled.forEach((o) => { o.frustumCulled = true; }); gfx.screenMesh.visible = false;
     cable.group.visible = fullP > SPAN + 0.005 && fullP < inCpu(0.6); cpu.group.visible = fullP > CABLE_END - 0.05 && camPos.y > BOARD_Y - 0.3; gfx.group.visible = fullP > inGfx(0.12); renderer.render(scene, camera); // as pose() left them
   };
-  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = gfx.group.visible = true; const done = () => { cable.group.visible = cpu.group.visible = gfx.group.visible = false; dirty = true; requestAnimationFrame(() => { warm(); upload(); }); };
+  requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = gfx.group.visible = gfx.screenMesh.visible = true; const done = () => { cable.group.visible = cpu.group.visible = gfx.group.visible = gfx.screenMesh.visible = false; dirty = true; requestAnimationFrame(() => { warm(); upload(); }); };
     (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).then(done, done); });
   running = false; start();
   document.fonts?.ready.then(() => {

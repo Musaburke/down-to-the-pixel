@@ -38,6 +38,12 @@ import Base from '../layouts/Base.astro';
         <span class="note">A grid of pixels</span>
         <span class="note">An edge pixel, partly lit</span>
       </div>
+      <div class="notes px-notes" aria-hidden="true">
+        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <span class="note">Red light</span>
+        <span class="note">Green light</span>
+        <span class="note">Blue light</span>
+      </div>
       <div class="gauge" aria-hidden="true">
         <svg><line/><line/><line/><line/><circle r="4.5"/></svg>
         <span class="note">At rest</span>
@@ -45,7 +51,7 @@ import Base from '../layouts/Base.astro';
         <span class="note">4 mm all the way down</span>
       </div>
       <ol class="stops" aria-label="The six stops of the walkthrough">
-        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li data-stop="cable">The cable</li><li data-stop="processor">The processor</li><li data-stop="graphics">Graphics</li><li>The pixel</li>
+        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li data-stop="cable">The cable</li><li data-stop="processor">The processor</li><li data-stop="graphics">Graphics</li><li data-stop="pixel">The pixel</li>
       </ol>
       <div class="panel">
         <div class="group" data-stop="hero">
@@ -78,17 +84,22 @@ import Base from '../layouts/Base.astro';
           <p data-split>The graphics processor, often part of the same chip, takes the letter's shape from the font and lays a grid of pixels over it. Each pixel is filled by how much of the shape covers it.</p>
           <details class="deeper"><summary>Go deeper</summary><dl><div><dt>A shape, not a picture</dt><dd>A font stores each letter as an outline: points joined by straight lines and curves. That is why the same letter stays sharp at any size.</dd></div><div><dt>Softer edges</dt><dd>A pixel the edge only half covers gets a shade in between. Your eye reads those in-between shades as a smoother edge than the grid could draw on its own.</dd></div><div><dt>Kept in memory</dt><dd>The finished picture is held in memory as a grid of values, one for each pixel, and sent to the screen many times a second.</dd></div></dl></details>
         </div>
+        <div class="group" data-stop="px">
+          <h2 data-split>One lit <em>pixel</em>.</h2>
+          <p data-split>The picture reaches the screen. Every pixel is three tiny lights, red, green and blue, and how brightly each one shines mixes into the colour you see. This one is part of your M.</p>
+          <details class="deeper"><summary>Go deeper</summary><dl><div><dt>Three lights in one</dt><dd>Each pixel holds a red, a green and a blue light. From a normal distance they are too small to see apart, so your eye blends them into one colour.</dd></div><div><dt>Mixing a colour</dt><dd>Turning each light up or down makes a wide range of colours; all three fully on looks white. This warm cream has red and green bright and blue held lower.</dd></div><div><dt>Over and over</dt><dd>The screen redraws the whole picture many times a second, so your letter shows up on the next redraw after the new picture arrives.</dd></div></dl></details>
+        </div>
       </div>
     </div>
   </section>
   <section class="next">
-    <h2>Next, <em>the pixel</em>.</h2>
-    <p>From here the finished picture goes to the screen, and one of these pixels lights up.</p>
+    <h2>From a press to <em>a pixel</em>.</h2>
+    <p>That is the whole path of one key press, from your fingertip to a single lit pixel.</p>
     <a class="quiet" href="#top">Back to the key</a>
   </section>
 </main>
 <footer class="foot">
-  <span>A look sample: five of the six stops.</span>
+  <span>A look sample: all six stops.</span>
   <a href="#top">Back to the top</a>
 </footer>
 </Base>

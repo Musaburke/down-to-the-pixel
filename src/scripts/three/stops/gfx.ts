@@ -1,13 +1,16 @@
-/* Stop 5, the graphics. In the dark under the processor, the letter is drawn the way text is drawn on any screen:
+/* Stops 5 and 6, the graphics and the pixel. In the dark under the processor, the letter is drawn the way text is drawn on any screen:
    its outline comes from the font (points joined by lines), a grid of pixels is laid over it, and each pixel is
    filled by how much of the shape covers it, so the edge pixels are only partly lit. The letter is the keycap's own
    M, in the same typeface; the outline and the coverage both come from the browser drawing that glyph, so they match.
-   Lies flat, top of the letter toward -z. One unit is about 10 mm. */
+   Then (stop 6) the tiles sink back and the plate becomes a screen showing the same M; up close, one of its pixels
+   opens into the three small lights every pixel is made of: red, green and blue, mixed by brightness into the warm
+   cream of the letter. Lies flat, top of the letter toward -z. One unit is about 10 mm. */
 import * as THREE from 'three';
 import { roundBox } from '../geometry.ts';
 
 const CELLS = 20, PITCH = 0.24, S = CELLS * PITCH;          // the pixel grid: 20 x 20 cells, 4.8 units across
 export const DRAW = new THREE.Vector3(9, -48, -7.6);        // centre of the drawing, on the top of its plate
+export const TARGET = { i: 9, j: 12 };                      // the pixel the last stop ends on: in the M's middle stroke (timeline.ts has its position)
 const FONT = '"Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif'; // the keycap legend's typeface (textures.ts)
 const R = 512;                                              // the canvas the outline is traced from
 
@@ -78,6 +81,12 @@ export interface Gfx {
   group: THREE.Group;
   /** Outline drawn (0..1), grid shown (0..1), pixels filled (0..1). */
   set: (draw: number, grid: number, fill: number) => void;
+  /** The screen takes over (0..1), from one warm square per pixel to its three lights (mix 1..0), and the landing flare. */
+  screen: (on: number, mix: number, flare: number, focus: number) => void;
+  /** Where each of the target pixel's three lights is, red, green, blue. */
+  lights: THREE.Vector3[];
+  /** The screen mesh, which stays hidden until stop 6; the warm-up shows it for its passes. */
+  screenMesh: THREE.Mesh;
   /** Where the pen is along the outline, 0..1. */
   penAt: (u: number, out: THREE.Vector3) => THREE.Vector3;
   /** Redo the letter once the typeface has loaded, so it matches the keycap. */
@@ -98,16 +107,16 @@ export function buildGfx(): Gfx {
 
   // The pixels: one tile per cell, sunk into the plate until the fill reaches it; then it rises by how much of it the
   // letter covers and glows by the same amount. Empty cells come up as dark tiles, so the whole raster shows.
-  const T = PITCH * 0.86, TH = 0.16, uFill = { value: 0 }, uLit = { value: 0 };
+  const T = PITCH * 0.86, TH = 0.16, uFill = { value: 0 }, uLit = { value: 0 }, uSink = { value: 0 };
   const tileGeo = roundBox(T, TH, T, 0.035, { seg: [3, 3, 3] });
   const aTile = new THREE.InstancedBufferAttribute(new Float32Array(CELLS * CELLS * 2), 2); tileGeo.setAttribute('aTile', aTile);
   const tileMat = new THREE.MeshPhysicalMaterial({ color: 0x2a2018, roughness: 0.34, clearcoat: 0.6, clearcoatRoughness: 0.22, emissive: 0xffb76c });
   tileMat.onBeforeCompile = (sh) => {
-    sh.uniforms.uFill = uFill; sh.uniforms.uLit = uLit;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aTile; uniform float uFill; varying float vCover; varying float vRise;')
+    sh.uniforms.uFill = uFill; sh.uniforms.uLit = uLit; sh.uniforms.uSink = uSink;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aTile; uniform float uFill; uniform float uSink; varying float vCover; varying float vRise;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vRise = smoothstep(0.0, 1.0, clamp((uFill * 1.35 - aTile.y) / 0.35, 0.0, 1.0)); vCover = aTile.x;
-        transformed.y += vRise * (0.045 + aTile.x * 0.11);`);
+        transformed.y += vRise * (0.045 + aTile.x * 0.11) * (1.0 - uSink) - uSink * 0.02;`); // sinking back into the plate as the screen takes over
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uLit; varying float vCover; varying float vRise;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         totalEmissiveRadiance *= vCover * vCover * vRise * uLit * (0.55 + 0.45 * smoothstep(0.0, 0.6, normal.z));`); // top brighter than the sides
@@ -116,6 +125,36 @@ export function buildGfx(): Gfx {
   const tiles = new THREE.InstancedMesh(tileGeo, tileMat, CELLS * CELLS);
   { const o = new THREE.Object3D(); for (let j = 0; j < CELLS; j++) for (let i = 0; i < CELLS; i++) { o.position.set(DRAW.x + (i - (CELLS - 1) / 2) * PITCH, top - TH - 0.006, DRAW.z + (j - (CELLS - 1) / 2) * PITCH); o.updateMatrix(); tiles.setMatrixAt(j * CELLS + i, o.matrix); } }
   tiles.castShadow = tiles.receiveShadow = true; tiles.frustumCulled = false; group.add(tiles);
+
+  // The screen: the same grid as glowing pixels on black glass. Far off each pixel reads as one warm square (uMix 1);
+  // up close it is three rounded stripes, red, green and blue, lit at the strengths that mix to the letter's cream.
+  const covData = new Uint8Array(CELLS * CELLS * 4), covTex = new THREE.DataTexture(covData, CELLS, CELLS);
+  covTex.magFilter = covTex.minFilter = THREE.NearestFilter; covTex.generateMipmaps = false;
+  const uScreen = { value: 0 }, uMix = { value: 1 }, uFlare = { value: 0 }, uFocus = { value: 0 };
+  const screenMat = new THREE.MeshPhysicalMaterial({ color: 0x060504, roughness: 0.7, specularIntensity: 0.25, envMapIntensity: 0.3, transparent: true, opacity: 0 }); // matte: a glossy screen mirrored the key light as a milky haze
+  screenMat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { uCov: { value: covTex }, uScreen, uMix, uFlare, uFocus, uTarget: { value: new THREE.Vector2(TARGET.i, CELLS - 1 - TARGET.j) } });
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vScreenUv;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvScreenUv = uv;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+      uniform sampler2D uCov; uniform float uScreen; uniform float uMix; uniform float uFlare; uniform float uFocus; uniform vec2 uTarget; varying vec2 vScreenUv;
+      float sdRB(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        vec2 g = vScreenUv * ${CELLS}.0, cell = floor(g), f = fract(g);
+        float aa = fwidth(g.x) * 1.2, cov = texture2D(uCov, (cell + 0.5) / ${CELLS}.0).r;
+        float isT = 1.0 - step(0.1, distance(cell, uTarget));
+        cov *= (1.0 + uFlare * isT * 0.6) * mix(1.0, 0.28, uFocus * (1.0 - isT));                 // the pixel the message lands in flares; its neighbours step back
+        float sq = 1.0 - smoothstep(-aa, aa, sdRB(f - 0.5, vec2(0.43), 0.1));
+        vec3 mixed = vec3(1.0, 0.74, 0.44) * cov * sq * 0.62;
+        float k = f.x * 3.0, sub = floor(k);
+        float stripe = 1.0 - smoothstep(-aa, aa, sdRB(vec2((fract(k) - 0.5) / 3.0, f.y - 0.5), vec2(0.118, 0.43), 0.05));
+        float core = 0.62 + 0.38 * (1.0 - smoothstep(0.0, 0.45, abs(f.y - 0.5))) * (1.0 - smoothstep(0.0, 0.5, abs(fract(k) - 0.5)));
+        vec3 hue = sub < 0.5 ? vec3(1.0, 0.16, 0.07) : sub < 1.5 ? vec3(0.22, 1.0, 0.18) : vec3(0.16, 0.32, 1.0);
+        float w = sub < 0.5 ? 1.0 : sub < 1.5 ? 0.8 : 0.5;                                         // red full, green most, blue half: together, warm cream
+        vec3 lights = hue * stripe * (w * cov * core * 0.62 + 0.01);                                // unlit stripes keep a trace of their filter colour
+        totalEmissiveRadiance = mix(lights, mixed, uMix) * uScreen;`);
+  };
+  screenMat.customProgramCacheKey = () => 'gfx-screen';
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(S, S), screenMat); screen.rotation.x = -Math.PI / 2; screen.position.set(DRAW.x, top + 0.002, DRAW.z); screen.visible = false; screen.renderOrder = 3; group.add(screen);
 
   // The outline: a fine gold line traced point to point, with a bright head where the pen is, and the points
   // themselves (the corners stored in the font) as small studs that appear as it reaches them.
@@ -160,6 +199,8 @@ export function buildGfx(): Gfx {
     const cov = coverage();
     for (let j = 0; j < CELLS; j++) for (let i = 0; i < CELLS; i++) { const k = j * CELLS + i; aTile.setXY(k, cov[k]!, j / CELLS * 0.85 + i / CELLS * 0.15); }
     aTile.needsUpdate = true;
+    for (let j = 0; j < CELLS; j++) for (let i = 0; i < CELLS; i++) covData[((CELLS - 1 - j) * CELLS + i) * 4] = Math.round(cov[j * CELLS + i]! * 255); // rows bottom-up, as the plane's uv runs
+    covTex.needsUpdate = true;
     // anchors: the top of the left stem, an empty pixel in the front row, and a partly covered pixel on the right edge
     const first = corners.reduce((b, c) => (c.p.z + c.p.x * 0.2 < b.p.z + b.p.x * 0.2 ? c : b), corners[0]!); anchors[0]!.copy(first.p);
     anchors[1]!.set(DRAW.x + (4 - (CELLS - 1) / 2) * PITCH, top + 0.05, DRAW.z + (CELLS - 1) / 2 * PITCH); // a dark pixel in the front row
@@ -176,6 +217,13 @@ export function buildGfx(): Gfx {
     studs.instanceMatrix.needsUpdate = true;
   };
   set(0, 0, 0);
+  const screenOn = (on: number, mix: number, flare: number, focus: number) => {
+    uSink.value = THREE.MathUtils.smoothstep(on, 0, 0.7); uScreen.value = on; screenMat.opacity = Math.min(1, on * 1.6); screen.visible = on > 0.001;
+    uMix.value = mix; uFlare.value = flare; uFocus.value = focus;
+    if (on > 0) { plateMat.emissiveIntensity *= 1 - on; uFade.value *= 1 - on; }
+  };
+  const tx = DRAW.x + (TARGET.i - (CELLS - 1) / 2) * PITCH, tz = DRAW.z + (TARGET.j - (CELLS - 1) / 2) * PITCH;
+  const lights = [-1, 0, 1].map((k) => new THREE.Vector3(tx + k * PITCH / 3, top + 0.003, tz + PITCH * 0.36)); // the lower end of each stripe
   const penAt = (u: number, out: THREE.Vector3) => out.copy(path.curves.length ? path.getPointAt(THREE.MathUtils.clamp(u, 0, 1)) : DRAW).setY(top + 0.09);
-  return { group, set, penAt, redraw, anchors };
+  return { group, set, screen: screenOn, lights, screenMesh: screen, penAt, redraw, anchors };
 }
