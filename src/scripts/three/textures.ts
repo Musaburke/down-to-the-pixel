@@ -58,7 +58,25 @@ export function grainTile(): string {
 }
 
 /** One keycap legend in the page's grotesk. */
-export const legend = (ch: string, ink: string) => tex(256, (g, n) => {
+export const legend = (ch: string, ink: string) => tex(512, (g, n) => {
   g.clearRect(0, 0, n, n); g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.font = `500 ${n * 0.5}px "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif`; g.fillText(ch, n / 2, n * 0.53);
 }, { srgb: true });
+
+/** A soft-edged dark rectangle: the contact shadow under something box-shaped. `core` is the solid part, 0..1 of the tile. */
+export const softRect = (aspect: number, core = 0.62, dark = 0.8) => {
+  const c = document.createElement('canvas'); c.width = 256; c.height = Math.max(16, Math.round(256 / aspect));
+  const g = c.getContext('2d');
+  if (!g) throw new Error('2D canvas unavailable');
+  const w = c.width * core, h = c.height - (c.width - w);
+  g.shadowColor = `rgba(0,0,0,${dark})`; g.shadowBlur = (c.width - w) * 0.42; g.shadowOffsetX = c.width * 2; g.fillStyle = '#000';
+  g.fillRect((c.width - w) / 2 - c.width * 2, (c.height - h) / 2, w, h); // drawn off canvas: only its blurred shadow lands on it
+  return new THREE.CanvasTexture(c);
+};
+
+/** A woven sleeve as a height map: two sets of diagonal strands crossing. */
+export const braidTex = () => tex(64, (g, n) => {
+  g.fillStyle = '#777'; g.fillRect(0, 0, n, n); g.lineWidth = n / 9; g.lineCap = 'round';
+  for (const [dir, tone] of [[1, '#d8d8d8'], [-1, '#a8a8a8']] as const) { g.strokeStyle = tone;
+    for (let i = -4; i <= 8; i++) { g.beginPath(); g.moveTo(i * n / 4, 0); g.lineTo(i * n / 4 + dir * n, n); g.stroke(); } }
+}, { repeat: 1 });

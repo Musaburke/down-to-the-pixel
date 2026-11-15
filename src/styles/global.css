@@ -58,7 +58,9 @@ p { max-width: 34ch; text-wrap: pretty; }
 /* Live: the section pins a full-screen stage and the panel holds one group at a time. */
 .live .walk { height: var(--walk); }
 .live .stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
-.live .stage canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; }
+.live .stage canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 700ms var(--ease-out); }
+.live.lit .stage canvas { opacity: 1; } /* the scene fades up once its textures have arrived */
+.pinned .stage canvas, .still .stage canvas { transition: none; }
 /* Stage atmosphere: a static vignette and a fine grain tile, both still. */
 .live .veil { display: block; position: absolute; inset: 0; pointer-events: none; }
 .vignette { background: radial-gradient(ellipse 85% 75% at 62% 48%, transparent 55%, rgba(0, 0, 0, 0.42) 100%); }

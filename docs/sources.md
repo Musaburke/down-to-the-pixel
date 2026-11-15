@@ -17,12 +17,16 @@ Source: CHERRY, product page "CHERRY MX RED", https://www.cherry.de/en-gb/produc
 | Push at the bottom | 100 cN | Properties: "Final force 100 cN" |
 
 
-## Desk texture (Poly Haven, CC0)
+## Textures (Poly Haven, CC0)
 
-The desk top uses one Poly Haven texture, licensed CC0 (public domain: free to use, no credit required). Downloaded 14 Nov 2026 through the Poly Haven API at 1k; the normal and roughness maps were reduced locally to 512 px. Files are in `public/assets/oak_veneer_01/`.
+Every photo texture comes from Poly Haven, licensed CC0 (public domain: free to use, no credit required). Downloaded 15 Nov 2026 through the Poly Haven API and converted to WebP. Files are in `public/assets/<id>/`.
 
-| Asset | Id | Authors | Page |
-| --- | --- | --- | --- |
-| Oak Veneer 01 | `oak_veneer_01` | Jenelle van Heerden | https://polyhaven.com/a/oak_veneer_01 |
+| Used for | Id | Author | Source size | Shipped | Page |
+| --- | --- | --- | --- | --- | --- |
+| Keyboard case | `black_walnut_veneer_02` | Jenelle van Heerden | 4k colour, 2k normal and roughness | 4096 px colour (darkened to oiled walnut, pores added), 2048 px normal, 1024 px roughness | https://polyhaven.com/a/black_walnut_veneer_02 |
+| Desk top | `black_walnut_veneer_01` | Jenelle van Heerden | 2k | 2048 px colour and normal, 1024 px roughness (lifted to a satin finish) | https://polyhaven.com/a/black_walnut_veneer_01 |
+| Candle flame | `brass_candleholders` (flame texture only) | Tina | 2k | 256 px | https://polyhaven.com/a/brass_candleholders |
+
+The lamp, candle, mug, cable and keyboard are built in code; no other files were downloaded into the repo.
 
 Licence: https://polyhaven.com/license
