@@ -332,7 +332,7 @@ export function buildCpu(): Cpu {
   const anchors = [
     new THREE.Vector3(CHIP.x - 1.55, top + 0.32, CHIP.z + 1.55),   // the lid (while it is still on)
     new THREE.Vector3(CHIP.x + 0.55, top + 0.1, CHIP.z + 0.7),     // the die
-    new THREE.Vector3(CHIP.x - 1.05, top + 0.05, CHIP.z + 2.1),    // a cluster of the small parts round it
+    new THREE.Vector3(CHIP.x - 1.05, top + 0.05, CHIP.z - 2.1),    // the cluster of small parts at the back left, which stays in frame to the end
   ];
   return { group, set, beadAt, anchors };
 }

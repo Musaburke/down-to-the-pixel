@@ -349,8 +349,12 @@ if (renderer) {
   }
 
   /* ---------- annotations: project three anchors, draw leader lines to their labels ---------- */
+  // Every leader line has a dark halo drawn under it, so it reads over bright parts of the scene as well as dark ones.
+  const halos = new WeakMap();
+  document.querySelectorAll('.notes line, .gauge line').forEach((L) => { const h = L.cloneNode(); h.setAttribute('class', 'halo'); L.before(h); halos.set(L, h); });
+  const seat = (L, x1, y1, x2, y2) => { for (const e of [L, halos.get(L)]) { e.setAttribute('x1', x1.toFixed(1)); e.setAttribute('y1', y1.toFixed(1)); e.setAttribute('x2', x2.toFixed(1)); e.setAttribute('y2', y2.toFixed(1)); } };
   const notes = document.querySelector('.notes'), noteEls = [...notes.querySelectorAll('.note')];
-  const noteLines = [...notes.querySelectorAll('line')], noteDots = [...notes.querySelectorAll('circle')];
+  const noteLines = [...notes.querySelectorAll('line:not(.halo)')], noteDots = [...notes.querySelectorAll('circle')];
   const anchor = new THREE.Vector3();
   let notesOn = -1;
   function annotate(p) {
@@ -367,7 +371,7 @@ if (renderer) {
     spots.forEach(([a, [dx, dy], side], i) => {
       anchor.set(...a).project(camera);
       const x = (anchor.x + 1) / 2 * W, y = (1 - anchor.y) / 2 * H, ex = x + dx * s, ey = y + dy * s;
-      const L = noteLines[i]; L.setAttribute('x1', x.toFixed(1)); L.setAttribute('y1', y.toFixed(1)); L.setAttribute('x2', ex.toFixed(1)); L.setAttribute('y2', ey.toFixed(1));
+      seat(noteLines[i], x, y, ex, ey);
       noteDots[i].setAttribute('cx', x.toFixed(1)); noteDots[i].setAttribute('cy', y.toFixed(1));
       const el = noteEls[i], gap = 10 * side;
       el.style.transform = `translate(${(ex + gap).toFixed(1)}px, ${ey.toFixed(1)}px) translate(${side > 0 ? 0 : -100}%, -50%)`;
@@ -378,7 +382,7 @@ if (renderer) {
   // `layout` is [dx, dy, side] per label; a label whose part is behind the words or off frame waits.
   const labelSets = [];
   const labels = (selector, layout) => {
-    const el = document.querySelector(selector), set = { el, on: -1, els: [...el.querySelectorAll('.note')], lines: [...el.querySelectorAll('line')], dots: [...el.querySelectorAll('circle')] };
+    const el = document.querySelector(selector), set = { el, on: -1, els: [...el.querySelectorAll('.note')], lines: [...el.querySelectorAll('line:not(.halo)')], widths: [], dots: [...el.querySelectorAll('circle')] };
     labelSets.push(set);
     return (o, anchors, each = () => 1) => {
       o = W > 760 ? o : 0;
@@ -389,27 +393,28 @@ if (renderer) {
       layout.forEach(([dx, dy, side], i) => {
         anchor.copy(anchors[i]).project(camera);
         const x = (anchor.x + 1) / 2 * W, y = (1 - anchor.y) / 2 * H, ex = x + dx * s, ey = y + dy * s, L = set.lines[i];
-        L.setAttribute('x1', x.toFixed(1)); L.setAttribute('y1', y.toFixed(1)); L.setAttribute('x2', ex.toFixed(1)); L.setAttribute('y2', ey.toFixed(1));
+        seat(L, x, y, ex, ey);
         set.dots[i].setAttribute('cx', x.toFixed(1)); set.dots[i].setAttribute('cy', y.toFixed(1));
         set.els[i].style.transform = `translate(${(ex + 10 * side).toFixed(1)}px, ${ey.toFixed(1)}px) translate(${side > 0 ? 0 : -100}%, -50%)`;
-        const seen = x > W * 0.38 && x < W * 0.96 && ey > H * 0.1 && ey < H * 0.86 ? each(i) : 0; // clear of the nav pill and the stop list
-        set.els[i].style.opacity = L.style.opacity = set.dots[i].style.opacity = seen.toFixed(3);
+        const w = set.widths[i] ||= set.els[i].offsetWidth, lx = side > 0 ? ex + 10 : ex - 10 - w, rx = side > 0 ? ex + 10 + w : ex - 10; // the label's own extent
+        const seen = x > W * 0.38 && x < W * 0.96 && lx > W * 0.36 && rx < W - 16 && ey > H * 0.1 && ey < H * 0.86 ? each(i) : 0; // whole label in frame, clear of the words, the nav pill and the stop list
+        set.els[i].style.opacity = L.style.opacity = halos.get(L).style.opacity = set.dots[i].style.opacity = seen.toFixed(3);
       });
     };
   };
-  const cableLabels = labels('.cable-notes', [[-110, -40, -1], [120, -30, 1], [120, 40, 1], [110, 30, 1]]);
-  const cpuLabels = labels('.cpu-notes', [[-200, -150, -1], [-150, 130, -1], [130, 110, 1]]);
+  const cableLabels = labels('.cable-notes', [[-110, -40, -1], [120, -30, 1], [-120, 40, -1], [100, 30, 1]]);
+  const cpuLabels = labels('.cpu-notes', [[-200, -150, -1], [-150, 130, -1], [120, -70, 1]]);
   const gfxLabels = labels('.gfx-notes', [[-130, -60, -1], [10, 80, 1], [-10, -170, -1]]); // the later two in the dark below and above the plate
   function annotateLater() {
-    cableLabels(cpart('notes', 'linear') * (1 - seg(fullP, CABLE_END - 0.03, CABLE_END)), cable.anchors);
+    cableLabels(cpart('notes', 'linear') * (1 - seg(fullP, CABLE_END + 0.02, CABLE_END + 0.04)), cable.anchors); // the plug's label stays until the plug is in its socket
     const lidK = seg(fullP, ...CPU_PARTS.lid);
-    cpuLabels(seg(fullP, ...CPU_PARTS.notes) * (1 - seg(fullP, inGfx(0.1), inGfx(0.18))), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0.15, 0.4) : i === 1 ? seg(lidK, 0.7, 1) : 1)); // the lid's label leaves with it; the die's waits for it to show
+    cpuLabels(seg(fullP, ...CPU_PARTS.notes) * (1 - seg(fullP, inGfx(0.1), inGfx(0.18))), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0.15, 0.4) : seg(lidK, 0.7, 1))); // the lid's label leaves with it; the others wait for it to clear
     const fill = seg(fullP, ...GFX_PARTS.fill);
     gfxLabels(seg(fullP, ...GFX_PARTS.notes), gfx.anchors, (i) => (i === 0 ? 1 - seg(fill, 0.3, 0.6) : i === 1 ? seg(fullP, ...GFX_PARTS.grid) : seg(fill, 0.75, 1))); // each label arrives with its part
   }
 
   const gauge = document.querySelector('.gauge'), gaugeEls = [...gauge.querySelectorAll('.note')];
-  const gaugeLines = [...gauge.querySelectorAll('line')], gaugeDot = gauge.querySelector('circle'), gv = new THREE.Vector3();
+  const gaugeLines = [...gauge.querySelectorAll('line:not(.halo)')], gaugeDot = gauge.querySelector('circle'), gv = new THREE.Vector3();
   let gaugeOn = -1;
   function measure(p) { // a dimension line on the M's front corner: rest, 2 mm, 4 mm, and the cap top riding down it
     const o = W > 760 ? seg(p, 0.2, 0.3) * (1 - seg(p, 0.46, 0.52)) : 0;
@@ -418,7 +423,7 @@ if (renderer) {
     camera.updateMatrixWorld();
     const top = 0.72 + CAP.h, scr = (y) => { gv.set(0.78, y, 0.86).project(camera); return [(gv.x + 1) / 2 * W + 26, (1 - gv.y) / 2 * H]; };
     const [x0, y0] = scr(top), [, y2] = scr(top - PRE), [, y4] = scr(top - PRE * 2), [, yc] = scr(cap.position.y + CAP.h);
-    const set = (L, a, b, c, d) => { L.setAttribute('x1', a.toFixed(1)); L.setAttribute('y1', b.toFixed(1)); L.setAttribute('x2', c.toFixed(1)); L.setAttribute('y2', d.toFixed(1)); };
+    const set = seat;
     set(gaugeLines[0], x0, y0, x0, y4);
     [y0, y2, y4].forEach((y, i) => { set(gaugeLines[i + 1], x0 - 6, y, x0 + 6, y); gaugeEls[i].style.transform = `translate(${(x0 + 16).toFixed(1)}px, ${y.toFixed(1)}px) translateY(-50%)`; });
     gaugeDot.setAttribute('cx', x0.toFixed(1)); gaugeDot.setAttribute('cy', yc.toFixed(1));

@@ -89,9 +89,10 @@ p { max-width: 34ch; text-wrap: pretty; }
 /* Engraved annotations for the exploded switch: leader lines, round markers, sentence-case labels. */
 .live .notes { display: block; position: absolute; inset: 0; pointer-events: none; opacity: 0; }
 .notes svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.notes line { stroke: var(--muted); stroke-width: 1; }
-.notes circle { fill: var(--copper); }
-.note { position: absolute; left: 0; top: 0; font-size: 16px; line-height: 1.2; color: var(--ink); white-space: nowrap; }
+.notes line, .gauge line { stroke: var(--ink); stroke-opacity: 0.85; stroke-width: 1.25; }
+.notes line.halo, .gauge line.halo { stroke: var(--canvas); stroke-opacity: 0.6; stroke-width: 4; stroke-linecap: round; } /* a dark edge under each leader line, so it reads on bright parts of the scene */
+.notes circle, .gauge circle { fill: var(--copper); stroke: rgb(12 12 11 / 0.7); stroke-width: 2.5; paint-order: stroke; }
+.note { position: absolute; left: 0; top: 0; font-size: 16px; line-height: 1.2; color: var(--ink); white-space: nowrap; text-shadow: 0 0 8px rgb(12 12 11 / 0.85), 0 1px 2px rgb(12 12 11 / 0.9); } /* legible over bright parts of the scene */
 
 .stops { display: none; }
 .live .stops { display: flex; flex-wrap: wrap; gap: 6px 22px; position: absolute; z-index: 2; left: max(32px, env(safe-area-inset-left, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); margin: 0; padding: 10px 20px; border-radius: 999px; background: var(--panel); list-style: none; font-size: 16px; line-height: 1.3; color: var(--muted); }
@@ -122,8 +123,6 @@ p { max-width: 34ch; text-wrap: pretty; }
 .live .gauge { display: block; position: absolute; inset: 0; pointer-events: none; opacity: 0; }
 .gauge { display: none; }
 .gauge svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.gauge line { stroke: var(--muted); stroke-width: 1; }
-.gauge circle { fill: var(--copper); }
 .gauge .note { background: var(--panel); padding: 4px 12px; border-radius: 999px; }
 
 @media (max-width: 760px) {
