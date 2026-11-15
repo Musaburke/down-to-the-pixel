@@ -1,0 +1,8 @@
+// Static site on Cloudflare Pages: plain files from dist/, no server code. Uploaded with `npm run deploy`.
+// https://down-to-the-pixel.pages.dev. public/_headers applies.
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "down-to-the-pixel",
+	"compatibility_date": "2026-11-15",
+	"pages_build_output_dir": "./dist"
+}

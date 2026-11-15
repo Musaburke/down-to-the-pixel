@@ -14,6 +14,16 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={new URL(Astro.url.pathname, Astro.site)} />
+    <meta property="og:image" content={new URL('/og.jpg', Astro.site)} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A walnut keyboard on an oak desk at night, lit by a brass lamp and a candle, with the title Down to the pixel" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="theme-color" content="#0c0c0b" />
     <meta name="color-scheme" content="dark" />
