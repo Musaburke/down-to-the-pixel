@@ -82,7 +82,7 @@ export function buildBoard(o: BoardOptions): Board {
 
   /* ---------- case: one walnut block, chamfered, with a brass lip around the key field ---------- */
   const outer = loop(BOARD.w + 4.3, BOARD.d + 4.3, 1.15, 14), inner = loop(BOARD.w + 0.5, BOARD.d + 0.5, 0.4, 8);
-  const foot = DESK_Y + 0.14, LIP = 0.11;
+  const foot = DESK_Y + 0.14, LIP = 0.17;
   const shell = sweep(outer, [[-0.45, foot], [-0.4, foot + 0.06], [0, foot + 0.42], [0, RIM_Y - 0.4], [-0.04, RIM_Y - 0.34], [-0.34, RIM_Y - 0.04], [-0.4, RIM_Y]]);
   const well = sweep(inner, [[LIP + 0.05, RIM_Y], [LIP + 0.01, RIM_Y - 0.04], [LIP + 0.01, RIM_Y - 0.09]]); // the wood's inner edge, down to the brass
   const base = face(outer, foot, undefined, -0.45); // the underside closes the block, so the lamp cannot shine through it
@@ -107,7 +107,7 @@ export function buildBoard(o: BoardOptions): Board {
   });
   batches.forEach((list, id) => {
     const k0 = list[0]!, t = id.split('|')[1] as Tone, space = k0.w > 6;
-    const geo = roundBox(k0.w * PITCH - GAP, CAP.h, k0.h * PITCH - GAP, CAP.r, { inset: INSET, dish: space ? -0.03 : CAP.dish, seg: [k0.w > 2 ? 22 : 14, 7, k0.h > 1 ? 20 : 14] });
+    const geo = roundBox(k0.w * PITCH - GAP, CAP.h, k0.h * PITCH - GAP, CAP.r, { inset: INSET, dish: space ? -0.03 : CAP.dish,  seg: [k0.w > 2 ? 22 : 14, 7, k0.h > 1 ? 20 : 14] });
     geo.setAttribute('wear', new THREE.InstancedBufferAttribute(new Float32Array(list.map((k) => (WEAR[k.l] ?? 0) * (0.7 + rnd() * 0.3))), 1));
     const m = new THREE.InstancedMesh(geo, o.capMats[t], list.length);
     const tint = new THREE.Color();
@@ -115,9 +115,9 @@ export function buildBoard(o: BoardOptions): Board {
     m.renderOrder = 1; m.castShadow = m.receiveShadow = true; group.add(m); caps.push(m);
   });
   // A dark switch housing under every cap, so the gaps between caps look down onto something.
-  const housings = new THREE.InstancedMesh(roundBox(1.42, 0.56, 1.42, 0.06, { taper: 0.12, seg: [4, 3, 4] }), o.housing, board.length);
+  const housings = new THREE.InstancedMesh(roundBox(1.42, 0.4, 1.42, 0.06, { taper: 0.12, seg: [4, 3, 4] }), o.housing, board.length);
   board.forEach((k, i) => { dummy.position.copy(keyAt(k, kv)); dummy.position.y = PLATE_Y; dummy.rotation.set(0, 0, 0); dummy.updateMatrix(); housings.setMatrixAt(i, dummy.matrix); });
-  housings.receiveShadow = true; group.add(housings); caps.push(housings); caps.push(bed);
+  housings.receiveShadow = housings.castShadow = true; group.add(housings); caps.push(housings); caps.push(bed);
 
   /* ---------- legends: one atlas, one instanced decal that takes the scene's light ---------- */
   const labelled = board.filter((k) => k.l);
@@ -176,7 +176,7 @@ export function buildBoard(o: BoardOptions): Board {
   plate.receiveShadow = false; // a thin polished lip: filtered shadow noise would show on it as a pattern
   const lie = new THREE.Mesh(new THREE.TubeGeometry(spine, 300, R * 2.6, 6, false), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
   { const p = lie.geometry.attributes.position!; for (let i = 0; i < p.count; i++) p.setY(i, DESK_Y + 0.012); } // the cable's contact shadow, pressed flat on the desk
-  group.add(cable, plug, port, barrel, lie);
+  group.add(port); // Musa, 15 Nov 2026: no cable on the desk. The lead, plug and connector stay built for the cable stop
 
   const redrawLegends = () => { const prev = legendMat.map; legendMat.map = atlas(); prev?.dispose(); };
   return { group, caps, legendMat, wood, redrawLegends };

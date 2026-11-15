@@ -6,6 +6,7 @@ import { DESK_Y } from './board.ts';
 
 export interface Corner {
   group: THREE.Group;
+  lights: THREE.Group;
   /** Lights that belong to the corner; the walkthrough scales them with the rest of the lamp rig. */
   setLight: (k: number, now: number, still: boolean) => void;
   /** Resolves when the streamed props are in the scene. */
@@ -72,7 +73,7 @@ export function buildCorner(o: CornerOptions): Corner {
 
   /* ---------- candle: a pillar on a brass dish. The top has burned down into a shallow pool ---------- */
   const candle = new THREE.Group(); candle.position.set(-13.5, DESK_Y, -30); candle.scale.setScalar(0.8);
-  const waxGeo = lathe([[0, 6.9], [0.7, 6.9], [1.5, 6.94], [2.2, 7.06], [2.75, 7.26], [3.05, 7.45], [3.2, 7.52], [3.3, 7.42], [3.33, 7.1], [3.33, 0.3], [3.25, 0.12], [3.0, 0.08], [0, 0.08]], 72, 12);
+  const waxGeo = lathe(([[0, 6.9], [0.7, 6.9], [1.5, 6.94], [2.2, 7.06], [2.75, 7.26], [3.05, 7.45], [3.2, 7.52], [3.3, 7.42], [3.33, 7.1], [3.33, 0.3], [3.25, 0.12], [3.0, 0.08], [0, 0.08]] as [number, number][]).reverse(), 72, 12); // bottom to top, so the faces point out
   { const p = waxGeo.attributes.position!, r = mulberry(5); const bump = Array.from({ length: 9 }, () => [r() * 6.3, 0.1 + r() * 0.22] as const); // the rim has slumped unevenly
     for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y < 6.5) continue; const a = Math.atan2(p.getZ(i), p.getX(i)); p.setY(i, y - bump.reduce((s, [ph, am], k) => s + am * (0.5 + 0.5 * Math.sin(a * (1 + (k % 4)) + ph)), 0) * 0.45 * THREE.MathUtils.smoothstep(Math.hypot(p.getX(i), p.getZ(i)), 1.5, 3.1)); }
     waxGeo.computeVertexNormals(); }
@@ -87,7 +88,8 @@ export function buildCorner(o: CornerOptions): Corner {
   const FLAME = new THREE.Vector3(0.1, 8.9, 0);
   const flameMat = new THREE.SpriteMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0, fog: false });
   const flame = new THREE.Sprite(flameMat); flame.scale.set(1.9, 3.9, 1); flame.position.copy(FLAME); flame.center.set(0.5, 0.12); flame.position.y = 7.75; candle.add(flame);
-  const candleLight = new THREE.PointLight(0xff9d4d, 0, 90, 2); candleLight.position.copy(FLAME).add(new THREE.Vector3(0, 2.6, 0)); candle.add(candleLight);
+  const candleLight = new THREE.PointLight(0xff9d4d, 0, 90, 2); const lights = new THREE.Group(); // kept apart from the props: hiding a light would make every material recompile mid-scroll
+  candleLight.position.copy(FLAME).multiplyScalar(0.8).add(new THREE.Vector3(0, 2.1, 0)).add(candle.position); lights.add(candleLight);
   add('candle', candle);
 
   /* ---------- mug: speckled stoneware, coffee in it ---------- */
@@ -95,7 +97,7 @@ export function buildCorner(o: CornerOptions): Corner {
   const glazeMap = speckle();
   const glaze = new THREE.MeshPhysicalMaterial({ map: glazeMap, roughness: 1, roughnessMap: smudge(23, 0.16, 0.34), clearcoat: 0.8, clearcoatRoughness: 0.12, envMapIntensity: 1.1, side: THREE.DoubleSide });
   const body = new THREE.Mesh(lathe([[0, 0.45], [3.0, 0.45], [3.25, 0.2], [3.35, 0], [3.7, 0], [3.9, 0.28], [4.06, 0.9], [4.14, 2.2], [4.14, 8.5], [4.1, 8.95], [3.98, 9.16], [3.82, 9.22], [3.68, 9.14], [3.62, 8.9], [3.6, 8.4], [3.6, 2.0], [3.45, 1.25], [3.0, 0.95], [0, 0.9]], 96, 13), glaze);
-  const coffee = new THREE.Mesh(new THREE.CircleGeometry(3.61, 64), new THREE.MeshPhysicalMaterial({ color: 0x1b0e07, roughness: 0.06, clearcoat: 1, envMapIntensity: 1.4 })); coffee.rotation.x = -Math.PI / 2; coffee.position.y = 8.25;
+  const coffee = new THREE.Mesh(new THREE.CircleGeometry(3.61, 64), new THREE.MeshPhysicalMaterial({ color: 0x140a05, roughness: 0.05, clearcoat: 1, envMapIntensity: 1.6, side: THREE.DoubleSide })); coffee.rotation.x = -Math.PI / 2; coffee.position.y = 8.25;
   const loop = new THREE.CatmullRomCurve3([[3.6, 7.5, 0], [4.9, 7.75, 0], [6.3, 7.3, 0], [6.95, 6.0, 0], [6.75, 4.5, 0], [5.9, 3.2, 0], [4.7, 2.5, 0], [3.6, 2.3, 0]].map((p) => new THREE.Vector3(...(p as [number, number, number]))));
   const handleGeo = new THREE.TubeGeometry(loop, 64, 0.42, 20, false);
   { const p = handleGeo.attributes.position!; for (let i = 0; i < p.count; i++) p.setZ(i, p.getZ(i) * 1.55); handleGeo.computeVertexNormals(); } // a strap handle, wider than it is thick
@@ -104,10 +106,10 @@ export function buildCorner(o: CornerOptions): Corner {
   add('mug', mug);
 
   /* ---------- lights ---------- */
-  const spill = new THREE.PointLight(0xffc793, 0, 160, 2); spill.position.copy(o.lampAt).add(new THREE.Vector3(0, 2, -1)); group.add(spill); // what escapes the shade: the glow on the wall
+  const spill = new THREE.PointLight(0xffc793, 0, 160, 2); spill.position.copy(o.lampAt).add(new THREE.Vector3(0, 2, -1)); lights.add(spill); // what escapes the shade: the glow on the wall
   const setLight = (k: number, now: number, still: boolean) => {
     const t = now / 1000, f = still ? 1 : 1 + 0.05 * Math.sin(t * 2.3) + 0.035 * Math.sin(t * 5.1 + 1.3) + 0.02 * Math.sin(t * 8.7 + 0.4); // a slow breath, never a strobe
-    candleLight.intensity = 210 * k * f; spill.intensity = 60 * k;
+    candleLight.intensity = 420 * k * f; spill.intensity = 60 * k;
     if (!still) { flame.scale.set(1.9 * (1 + 0.03 * Math.sin(t * 3.7)), 3.9 * (0.97 + 0.05 * (f - 1) * 10), 1); flame.material.rotation = 0.03 * Math.sin(t * 1.9) + 0.015 * Math.sin(t * 4.3); }
   };
 
@@ -115,5 +117,5 @@ export function buildCorner(o: CornerOptions): Corner {
   const texLoader = new THREE.TextureLoader();
   const flameIn = new Promise<void>((res) => texLoader.load('/assets/candle/flame.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; flameMat.map = t; flameMat.opacity = 1; flameMat.needsUpdate = true; res(); }, undefined, () => res()));
   const arrived = flameIn.then(() => o.onChange());
-  return { group, setLight, arrived };
+  return { group, lights, setLight, arrived };
 }

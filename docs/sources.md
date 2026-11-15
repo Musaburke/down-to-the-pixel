@@ -24,7 +24,7 @@ Every photo texture comes from Poly Haven, licensed CC0 (public domain: free to 
 | Used for | Id | Author | Source size | Shipped | Page |
 | --- | --- | --- | --- | --- | --- |
 | Keyboard case | `black_walnut_veneer_02` | Jenelle van Heerden | 4k colour, 2k normal and roughness | 4096 px colour (darkened to oiled walnut, pores added), 2048 px normal, 1024 px roughness | https://polyhaven.com/a/black_walnut_veneer_02 |
-| Desk top | `black_walnut_veneer_01` | Jenelle van Heerden | 2k | 2048 px colour and normal, 1024 px roughness (lifted to a satin finish) | https://polyhaven.com/a/black_walnut_veneer_01 |
+| Desk top | `oak_veneer_01` | Jenelle van Heerden | 2k | 2048 px colour (darkened to oiled oak) and normal, 1024 px roughness (lifted to a satin finish) | https://polyhaven.com/a/oak_veneer_01 |
 | Candle flame | `brass_candleholders` (flame texture only) | Tina | 2k | 256 px | https://polyhaven.com/a/brass_candleholders |
 
 The lamp, candle, mug, cable and keyboard are built in code; no other files were downloaded into the repo.

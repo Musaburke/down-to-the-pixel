@@ -78,7 +78,7 @@ if (renderer) {
   const fadeable = (o) => physical({ transparent: true, ...o });
   const capLook = {
     ivory: { color: 0xe9dcc5, roughness: 0.52, sheen: 0.35, sheenRoughness: 0.8, sheenColor: 0xfff1d8, normalMap: pbt, normalScale: new THREE.Vector2(0.1, 0.1) },
-    carbon: { color: 0x1d1b19, roughness: 0.6, sheen: 0.25, sheenRoughness: 0.9, sheenColor: 0x6d655b, normalMap: pbt, normalScale: new THREE.Vector2(0.1, 0.1) },
+    carbon: { color: 0x191918, roughness: 0.55, sheen: 0.18, sheenRoughness: 0.9, sheenColor: 0x4a4744, normalMap: pbt, normalScale: new THREE.Vector2(0.1, 0.1) },
     gold: { color: 0xb89a58, metalness: 1, roughness: 0.36, envMapIntensity: 1.5, normalMap: pbt, normalScale: new THREE.Vector2(0.05, 0.05) }, // brushed-gold accent cap
   };
   const heroAO = { value: 1 }, boardAO = { value: 1 }; // the hero cap sheds its occlusion as it leaves the board
@@ -101,10 +101,10 @@ if (renderer) {
   };
   const woodMat = photo(fadeable({ color: 0xe6dcd2, roughness: 0.6, clearcoat: 0.25, clearcoatRoughness: 0.42, envMapIntensity: 1.1 }), 'black_walnut_veneer_02', { nor: 1.3 }); // oiled walnut, satin
   woodMat.userData.rough = 1;
-  const floorMat = photo(new THREE.MeshStandardMaterial({ color: 0xb3a494, roughness: 0.6, metalness: 0, transparent: true, envMapIntensity: 0.6 }), 'black_walnut_veneer_01', { nor: 0.5 }); // the desk top: straight-grained walnut veneer, lighter than the case
+  const floorMat = photo(new THREE.MeshStandardMaterial({ color: 0xb3a494, roughness: 0.6, metalness: 0, transparent: true, envMapIntensity: 0.6 }), 'oak_veneer_01', { nor: 0.5 }); // the oak desk top
   floorMat.userData.rough = 1;
-  const brassMat = fadeable({ color: 0x8a7444, metalness: 1, roughness: 0.27, envMapIntensity: 1 }); // satin brass plate and lip
-  const housingMat = fadeable({ color: 0x171514, roughness: 0.55 });
+  const brassMat = fadeable({ color: 0x8a7444, metalness: 1, roughness: 0.4, envMapIntensity: 0.9 }); // satin brass plate and lip
+  const housingMat = fadeable({ color: 0x24201c, roughness: 0.5 });
   const bedMat = fadeable({ color: 0x2c2620, metalness: 0.8, roughness: 0.5, normalMap: pbt, normalScale: new THREE.Vector2(0.12, 0.12) }); // the plate the switches clip into: dark bronze
   const shadeMat = new THREE.MeshBasicMaterial({ color: 0x050403, transparent: true });
   const metalMat = fadeable({ color: 0xb59a5c, metalness: 1, roughness: 0.3, normalMap: pbt, normalScale: new THREE.Vector2(0.04, 0.04) });
@@ -127,7 +127,7 @@ if (renderer) {
   /* ---------- the desk and the keyboard ---------- */
   const desk = new THREE.Group(); scene.add(desk); // everything that falls away on the way into the switch
   const floor = new THREE.Mesh(new THREE.BoxGeometry(420, 3, 300), floorMat); // the desk top, big enough that its edges stay out of frame or in the fog
-  floor.position.set(10, DESK_Y - 1.5, -60); boxUV(floor, 100); floor.receiveShadow = true; desk.add(floor);
+  floor.position.set(10, DESK_Y - 1.5, -60); boxUV(floor, 120, true); floor.receiveShadow = true; desk.add(floor);
   const board = buildBoard({ capMats: keyMats, wood: woodMat, brass: brassMat, housing: housingMat, bed: bedMat, sleeve: sleeveMat, metal: metalMat, shade: shadeMat });
   desk.add(board.group);
   const caseShadowMat = new THREE.MeshBasicMaterial({ map: softRect(52 / 21, 0.82, 0.85), transparent: true, depthWrite: false });
@@ -157,12 +157,12 @@ if (renderer) {
 
   /* ---------- light: one brass desk lamp, back left. The dark beyond its pool is the room ---------- */
   const LAMP = new THREE.Vector3(-24, DESK_Y + 42, -26), LAMP_CD = 17000;
-  const lamp = new THREE.SpotLight(0xffd3a6, LAMP_CD, 0, 0.88, 1, 2);
-  lamp.position.copy(LAMP); lamp.target.position.set(1, DESK_Y, -5); scene.add(lamp, lamp.target);
+  const lamp = new THREE.SpotLight(0xffd3a6, LAMP_CD, 0, 0.66, 1, 2);
+  lamp.position.copy(LAMP); lamp.target.position.set(0, DESK_Y, -9); scene.add(lamp, lamp.target);
   lamp.castShadow = true; lamp.shadow.mapSize.set(4096, 4096); lamp.shadow.bias = -0.0004; lamp.shadow.normalBias = 0.03; lamp.shadow.radius = 2.5;
   lamp.shadow.camera.near = 12; lamp.shadow.camera.far = 170;
   const corner = buildCorner({ lampAt: LAMP, grain: pbt, blob, solo, onChange: () => { if (bakeShadows) bakeShadows(); } });
-  scene.add(corner.group);
+  scene.add(corner.group, corner.lights);
   if (solo) { board.group.visible = false; caseShadow.visible = false; }
   const inRoom = (root) => root.traverse((m) => { [m.material].flat().forEach((mat) => { if (mat?.isMeshStandardMaterial) { mat.envMap = roomEnv; mat.needsUpdate = true; } }); });
   inRoom(desk); inRoom(corner.group); corner.arrived.then(() => inRoom(corner.group));
@@ -417,11 +417,12 @@ if (renderer) {
     annotate(op);
     measure(op);
     const r = 1 - seg(op, 0.18, 0.3); // how much of the room's light is in play; all of it fades on the push-in, no step in the key lighting
-    lamp.intensity = LAMP_CD * r; bounce.intensity = 0.26 * r;
+    lamp.intensity = LAMP_CD * r; bounce.intensity = 0.36 * r;
     corner.setLight(r, now, reduced || pinnedP !== null); corner.group.visible = sp < P0 + 0.02; // past the hero the fog has closed over the corner
     key.intensity = 2.6 * (1 - r); fill.intensity = 0.55 * (1 - r); rim.intensity = 1.1 * (1 - 0.8 * r); hemi.intensity = 0.4 - 0.1 * r;
     scene.environmentIntensity = 1 - 0.45 * r;
     renderer.render(scene, camera);
+    window.__programs = renderer.info.programs.length;
     if (hud) hud.textContent = `p ${p.toFixed(3)}  sp ${sp.toFixed(3)}\nsegment ${segName}\ndraw calls ${renderer.info.render.calls}  triangles ${renderer.info.render.triangles}`;
     window.__ready = true; window.__sp = sp;
   }
