@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx, PX_PARTS, inPx, END_PARTS, inEnd } from './choreo/timeline.ts';
+import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx, PX_PARTS, inPx, END_PARTS, inEnd, STOP_AT } from './choreo/timeline.ts';
 import { clamp, seg, lerp, part } from './choreo/seg.ts';
 import { makeFlow } from './choreo/flow.ts';
 import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from './three/textures.ts';
@@ -360,6 +360,12 @@ if (renderer) {
   // Every leader line has a dark halo drawn under it, so it reads over bright parts of the scene as well as dark ones.
   const halos = new WeakMap();
   document.querySelectorAll('.notes line, .gauge line').forEach((L) => { const h = L.cloneNode(); h.setAttribute('class', 'halo'); L.before(h); halos.set(L, h); });
+  // A label takes pointer and focus only while it is shown; its definition closes if the label fades.
+  const setLive = (el, on) => {
+    if (el.tagName !== 'BUTTON' || el._live === on) return; el._live = on; el.toggleAttribute('data-live', on); el.tabIndex = on ? 0 : -1;
+    const d = el.popoverTargetElement; if (!on && d?.matches(':popover-open')) d.hidePopover();
+  };
+  document.querySelectorAll('.notes button.note').forEach((el) => { el.tabIndex = -1; el._live = false; });
   const seat = (L, x1, y1, x2, y2) => { for (const e of [L, halos.get(L)]) { e.setAttribute('x1', x1.toFixed(1)); e.setAttribute('y1', y1.toFixed(1)); e.setAttribute('x2', x2.toFixed(1)); e.setAttribute('y2', y2.toFixed(1)); } };
   const notes = document.querySelector('.notes'), noteEls = [...notes.querySelectorAll('.note')];
   const noteLines = [...notes.querySelectorAll('line:not(.halo)')], noteDots = [...notes.querySelectorAll('circle')];
@@ -367,7 +373,7 @@ if (renderer) {
   let notesOn = -1;
   function annotate(p) {
     const o = W > 760 ? seg(p, 0.66, 0.74) * (1 - seg(fullP, SPAN, SPAN + 0.05)) : 0; // gone as the bead drops to the cable
-    if (o !== notesOn) { notes.style.opacity = o.toFixed(3); notesOn = o; }
+    if (o !== notesOn) { notes.style.opacity = o.toFixed(3); notesOn = o; noteEls.forEach((el) => setLive(el, o >= 0.5)); }
     if (o === 0) return;
     camera.updateMatrixWorld();
     const s = clamp(W / 1440, 0.75, 1);
@@ -395,7 +401,7 @@ if (renderer) {
     return (o, anchors, each = () => 1) => {
       o = W > 760 ? o : 0;
       if (o !== set.on) { el.style.opacity = o.toFixed(3); set.on = o; }
-      if (o === 0) return;
+      if (o === 0) { set.els.forEach((e) => setLive(e, false)); return; }
       camera.updateMatrixWorld();
       const s = clamp(W / 1440, 0.75, 1);
       layout.forEach(([dx, dy, side], i) => {
@@ -407,6 +413,7 @@ if (renderer) {
         const w = set.widths[i] ||= set.els[i].offsetWidth, lx = side > 0 ? ex + 10 : ex - 10 - w, rx = side > 0 ? ex + 10 + w : ex - 10; // the label's own extent
         const seen = x > W * 0.38 && x < W * 0.96 && lx > W * 0.36 && rx < W - 16 && ey > H * 0.1 && ey < H * 0.86 ? each(i) : 0; // whole label in frame, clear of the words, the nav pill and the stop list
         set.els[i].style.opacity = L.style.opacity = halos.get(L).style.opacity = set.dots[i].style.opacity = seen.toFixed(3);
+        setLive(set.els[i], seen >= 0.5 && o >= 0.5);
       });
     };
   };
@@ -474,16 +481,38 @@ if (renderer) {
   }
   addEventListener('resize', () => { resize(); clearTimeout(resize.t); resize.t = setTimeout(() => { split(); textIdx = -1; }, 150); });
   addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' || reduced) return; pointer.x = e.clientX / innerWidth - 0.5; pointer.y = e.clientY / innerHeight - 0.5; }, { passive: true });
-  // "Follow it again": the scene fades to the desk still under it, the page jumps to the top and the spring is snapped
-  // there, so the camera does not rewind through every stop; then the scene fades back in on the desk.
+  // Jumps (the stop list, "Press it again"): a short fade to dark, the page lands at that stop and the spring is snapped
+  // there, so the camera never rewinds through everything in between; then the fade lifts. Reduced motion: straight there.
+  const cover = document.querySelector('.cover'); let jumping = false;
+  const jumpTo = (target, after) => {
+    if (jumping) return;
+    const land = () => {
+      scrollTo({ top: walk.getBoundingClientRect().top + scrollY + target * (walk.offsetHeight - innerHeight), behavior: 'instant' });
+      if (!reduced) { p = sp = target; vel = 0; raw = true; dirty = true; }
+      if (textIdx !== -2) { textIdx = -1; setText(target); }
+      after?.();
+    };
+    if (reduced || !cover) { land(); return; }
+    jumping = true; cover.classList.add('on');
+    setTimeout(() => { land(); requestAnimationFrame(() => requestAnimationFrame(() => { cover.classList.remove('on'); jumping = false; })); }, 230);
+  };
   document.querySelector('.again')?.addEventListener('click', (e) => {
     e.preventDefault();
     const h1 = document.querySelector('h1'); h1?.setAttribute('tabindex', '-1');
-    const go = () => { scrollTo({ top: 0, behavior: 'instant' }); if (!reduced) { p = sp = 0; vel = 0; raw = true; dirty = true; } if (textIdx !== -2) { textIdx = -1; setText(0); } h1?.focus({ preventScroll: true }); }; // the opening's words are live again before focus moves to them
-    if (reduced) { go(); return; }
-    root.classList.remove('lit');
-    setTimeout(() => { go(); requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('lit'))); }, 480);
+    jumpTo(0, () => h1?.focus({ preventScroll: true })); // the opening's words are live again before focus moves to them
   });
+  document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => jumpTo(STOP_AT[b.dataset.go])));
+  // Definitions open beside their label (below it, or above near the bottom), clear of the words, and close on scroll.
+  let openAt = 0;
+  document.querySelectorAll('.def').forEach((d) => d.addEventListener('toggle', (e) => {
+    if (e.newState !== 'open') return;
+    const b = document.querySelector(`[popovertarget="${d.id}"]`); if (!b) return;
+    const r = b.getBoundingClientRect(), w = d.offsetWidth, h = d.offsetHeight;
+    const x = clamp(r.left - 50, innerWidth * 0.33, innerWidth - w);           // the text lines up under the label; the shade's padding spills past
+    const y = r.bottom + h - 22 < innerHeight - 60 ? r.bottom - 22 : r.top - h + 22;
+    d.style.left = `${x.toFixed(0)}px`; d.style.top = `${Math.max(8, y).toFixed(0)}px`; openAt = scrollY;
+  }));
+  addEventListener('scroll', () => { const d = document.querySelector('.def:popover-open'); if (d && Math.abs(scrollY - openAt) > 40) d.hidePopover(); }, { passive: true });
   if (debug) { hud = document.createElement('div'); hud.className = 'hud'; document.body.append(hud); }
 
   function frame(now) {

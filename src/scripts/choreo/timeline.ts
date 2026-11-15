@@ -121,4 +121,9 @@ export const CABLE_PARTS: Record<string, [number, number]> = {
   notes:    [after(0.45), after(0.55)], // engraved labels arrive as the stripped section comes into view
 };
 export const RIG: Shot[] = [...[...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease }))].map((s): Shot => ({ ...s, t: s.t * SPAN })), ...CABLE_SHOTS, ...CPU_SHOTS, ...GFX_SHOTS, ...PX_SHOTS, ...END_SHOTS];
+// Where each stop in the list takes you: just after its words arrive (the graphics after its flash).
+export const STOP_AT: Record<string, number> = {
+  key: at(0.17) * SPAN + 0.003, switch: at(0.6) * SPAN + 0.003, cable: after(0.22) + 0.003,
+  processor: inCpu(0.28) + 0.003, graphics: inGfx(0.3) + 0.003, pixel: inPx(0.28) + 0.003,
+};
 export const TEXT_RIG: [string, number][] = [...TEXT.map(([id, t], i): [string, number] => [id, i ? at(t) * SPAN : 0]), ['cable', after(0.22)], ['cpu', inCpu(0.28)], ['gfx', inGfx(0.22)], ['px', inPx(0.28)], ['end', inEnd(0.5)]];

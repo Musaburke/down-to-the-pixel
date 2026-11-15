@@ -51,6 +51,10 @@ No new figures; the 2 mm, 4 mm, 30 cN and 100 cN come from the CHERRY table abov
 
 TODO(musa): skim these before going public; none states a number.
 
+## Label definitions (all stops)
+
+Each label opens a one- or two-sentence definition. No new figures: 45 cN and 2 mm come from the CHERRY table; "roughly the weight of 45 grams" is a conversion of 45 cN (1 cN is about the weight of 1.02 g), not a separate claim. The rest is standard: the stem lets the contact leaf spring onto the fixed contact as it travels; braided sleeving protects a cable's outside; foil shielding blocks outside interference; the processor's lid is an integrated heat spreader; the die holds the circuits, built from transistors; decoupling capacitors smooth the chip's supply; font outlines are points joined by lines and curves; anti-aliasing shades partly covered edge pixels; each pixel's red, green and blue are set independently. The strengths given for this pixel (red full, green most of the way, blue about half) describe the drawing, not a measured panel.
+
 ## Textures (Poly Haven, CC0)
 
 Every photo texture comes from Poly Haven, licensed CC0 (public domain: free to use, no credit required). Downloaded 15 Nov 2026 through the Poly Haven API and converted to WebP. Files are in `public/assets/<id>/`.

@@ -13,36 +13,37 @@ import Base from '../layouts/Base.astro';
       <div class="veil vignette" aria-hidden="true"></div>
       <div class="veil grain" aria-hidden="true"></div>
       <div class="veil scrim" aria-hidden="true"></div>
-      <div class="notes" aria-hidden="true">
-        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
-        <span class="note">The stem</span>
-        <span class="note">The spring, 45 cN to press</span>
-        <span class="note">Contacts touch at 2 mm</span>
+      <div class="veil cover" aria-hidden="true"></div>
+      <div class="notes">
+        <svg aria-hidden="true"><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <button type="button" class="note" popovertarget="def-stem">The stem</button>
+        <button type="button" class="note" popovertarget="def-spring">The spring, 45 cN to press</button>
+        <button type="button" class="note" popovertarget="def-contacts">Contacts touch at 2 mm</button>
       </div>
-      <div class="notes cable-notes" aria-hidden="true">
-        <svg><line/><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
-        <span class="note">The braid, cut back</span>
-        <span class="note">The foil shield</span>
-        <span class="note">The data pair, twisted together</span>
-        <span class="note">The plug, into the computer</span>
+      <div class="notes cable-notes">
+        <svg aria-hidden="true"><line/><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <button type="button" class="note" popovertarget="def-braid">The braid, cut back</button>
+        <button type="button" class="note" popovertarget="def-foil">The foil shield</button>
+        <button type="button" class="note" popovertarget="def-pair">The data pair, twisted together</button>
+        <button type="button" class="note" popovertarget="def-plug">The plug, into the computer</button>
       </div>
-      <div class="notes cpu-notes" aria-hidden="true">
-        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
-        <span class="note">The metal lid, lifting off</span>
-        <span class="note">The silicon, lit where the code is read</span>
-        <span class="note">Capacitors, steadying its power</span>
+      <div class="notes cpu-notes">
+        <svg aria-hidden="true"><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <button type="button" class="note" popovertarget="def-lid">The metal lid, lifting off</button>
+        <button type="button" class="note" popovertarget="def-die">The silicon, lit where the code is read</button>
+        <button type="button" class="note" popovertarget="def-caps">Capacitors, steadying its power</button>
       </div>
-      <div class="notes gfx-notes" aria-hidden="true">
-        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
-        <span class="note">The outline, from the font</span>
-        <span class="note">A grid of pixels</span>
-        <span class="note">An edge pixel, partly lit</span>
+      <div class="notes gfx-notes">
+        <svg aria-hidden="true"><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <button type="button" class="note" popovertarget="def-outline">The outline, from the font</button>
+        <button type="button" class="note" popovertarget="def-grid">A grid of pixels</button>
+        <button type="button" class="note" popovertarget="def-edge">An edge pixel, partly lit</button>
       </div>
-      <div class="notes px-notes" aria-hidden="true">
-        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
-        <span class="note">Red light</span>
-        <span class="note">Green light</span>
-        <span class="note">Blue light</span>
+      <div class="notes px-notes">
+        <svg aria-hidden="true"><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <button type="button" class="note" popovertarget="def-red">Red light</button>
+        <button type="button" class="note" popovertarget="def-green">Green light</button>
+        <button type="button" class="note" popovertarget="def-blue">Blue light</button>
       </div>
       <div class="gauge" aria-hidden="true">
         <svg><line/><line/><line/><line/><circle r="4.5"/></svg>
@@ -51,7 +52,7 @@ import Base from '../layouts/Base.astro';
         <span class="note">4 mm all the way down</span>
       </div>
       <ol class="stops" aria-label="The six stops of the walkthrough">
-        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li data-stop="cable">The cable</li><li data-stop="processor">The processor</li><li data-stop="graphics">Graphics</li><li data-stop="pixel">The pixel</li>
+        <li data-stop="key"><button type="button" data-go="key">The key</button></li><li data-stop="switch"><button type="button" data-go="switch">The switch</button></li><li data-stop="cable"><button type="button" data-go="cable">The cable</button></li><li data-stop="processor"><button type="button" data-go="processor">The processor</button></li><li data-stop="graphics"><button type="button" data-go="graphics">Graphics</button></li><li data-stop="pixel"><button type="button" data-go="pixel">The pixel</button></li>
       </ol>
       <div class="panel">
         <div class="group" data-stop="hero">
@@ -92,11 +93,30 @@ import Base from '../layouts/Base.astro';
         <div class="group" data-stop="end">
           <h2 data-split>From a press to <em>a pixel</em>.</h2>
           <p data-split>That is the whole path of one key press, from your fingertip to a single lit pixel.</p>
-          <a class="pill again" href="#top">Follow it again</a>
+          <a class="again keycap" href="#top"><svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Press it again</a>
+          <ul class="end-stops" aria-label="Go back to a stop"><li><button type="button" class="quiet" data-go="key">The key</button></li><li><button type="button" class="quiet" data-go="switch">The switch</button></li><li><button type="button" class="quiet" data-go="cable">The cable</button></li><li><button type="button" class="quiet" data-go="processor">The processor</button></li><li><button type="button" class="quiet" data-go="graphics">Graphics</button></li><li><button type="button" class="quiet" data-go="pixel">The pixel</button></li></ul>
         </div>
       </div>
     </div>
   </section>
+  <div class="defs">
+  <div class="def" id="def-stem" popover><strong>The stem</strong><p>The plastic plunger under the keycap. As it moves down, it lets the two metal contacts spring together.</p></div>
+  <div class="def" id="def-spring" popover><strong>The spring</strong><p>The coil that pushes the key back up. It takes about 45 cN, roughly the weight of 45 grams, to press it far enough.</p></div>
+  <div class="def" id="def-contacts" popover><strong>The contacts</strong><p>Two thin strips of metal. At 2 mm they touch, the circuit closes, and the keyboard registers the key.</p></div>
+  <div class="def" id="def-braid" popover><strong>The braid</strong><p>A woven sleeve over the outside of the cable that protects it from wear.</p></div>
+  <div class="def" id="def-foil" popover><strong>The foil shield</strong><p>A thin wrap of metal foil round the wires inside. It keeps outside electrical noise away from them.</p></div>
+  <div class="def" id="def-pair" popover><strong>The data pair</strong><p>The two wires that carry the message, as opposite signals. Twisting them makes outside noise hit both alike, so it cancels out.</p></div>
+  <div class="def" id="def-plug" popover><strong>The plug</strong><p>The connector at the end of the cable. Its contacts meet the socket’s, so power and data can pass through.</p></div>
+  <div class="def" id="def-lid" popover><strong>The metal lid</strong><p>A heat spreader. It protects the silicon and spreads its heat over a wider area, so a cooler can carry it away.</p></div>
+  <div class="def" id="def-die" popover><strong>The silicon</strong><p>The die: a thin slice of silicon holding the processor’s circuits, built from transistors far too small to see.</p></div>
+  <div class="def" id="def-caps" popover><strong>Capacitors</strong><p>Tiny parts that hold a little electric charge and release it in an instant, smoothing sudden changes in the chip’s power.</p></div>
+  <div class="def" id="def-outline" popover><strong>The outline</strong><p>The letter as the font stores it: points joined by lines and curves, which can be drawn at any size.</p></div>
+  <div class="def" id="def-grid" popover><strong>A grid of pixels</strong><p>The picture on a screen is a grid of tiny squares, each one colour. The letter has to be fitted onto that grid.</p></div>
+  <div class="def" id="def-edge" popover><strong>An edge pixel</strong><p>A pixel only partly inside the letter’s shape. It gets an in-between shade, so the edge looks smooth rather than jagged.</p></div>
+  <div class="def" id="def-red" popover><strong>The red light</strong><p>One of the three tiny lights in every pixel, each turned up or down on its own. Here red runs at full strength.</p></div>
+  <div class="def" id="def-green" popover><strong>The green light</strong><p>One of the three tiny lights in every pixel. Here green runs most of the way up.</p></div>
+  <div class="def" id="def-blue" popover><strong>The blue light</strong><p>One of the three tiny lights in every pixel. Here blue runs at about half, which is what turns the mix of all three into the letter’s warm cream.</p></div>
+  </div>
 </main>
 <footer class="foot">
   <span>A look sample.</span>

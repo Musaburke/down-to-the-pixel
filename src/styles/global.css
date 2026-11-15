@@ -68,6 +68,8 @@ p { max-width: 34ch; text-wrap: pretty; }
 /* Stage atmosphere: a static vignette and a fine grain tile, both still. */
 .live .veil { display: block; position: absolute; inset: 0; pointer-events: none; }
 .flash { background: #c99350; opacity: 0; } /* the die's light filling the frame as the camera passes through it */
+.cover { background: var(--canvas); opacity: 0; transition: opacity 320ms var(--ease-out); } /* a short fade to dark while a jump lands */
+.cover.on { opacity: 1; transition-duration: 220ms; }
 .vignette { background: radial-gradient(ellipse 85% 75% at 62% 48%, transparent 55%, rgba(0, 0, 0, 0.42) 100%); }
 .grain { opacity: 0.07; background-size: 160px 160px; }
 .live .panel { position: absolute; left: max(32px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%); width: min(500px, 38vw); padding: 36px 36px 40px; gap: 0; }
@@ -93,10 +95,31 @@ p { max-width: 34ch; text-wrap: pretty; }
 .notes line.halo, .gauge line.halo { stroke: var(--canvas); stroke-opacity: 0.6; stroke-width: 4; stroke-linecap: round; } /* a dark edge under each leader line, so it reads on bright parts of the scene */
 .notes circle, .gauge circle { fill: var(--copper); stroke: rgb(12 12 11 / 0.7); stroke-width: 2.5; paint-order: stroke; }
 .note { position: absolute; left: 0; top: 0; font-size: 16px; line-height: 1.2; color: var(--ink); white-space: nowrap; text-shadow: 0 0 8px rgb(12 12 11 / 0.85), 0 1px 2px rgb(12 12 11 / 0.9); } /* legible over bright parts of the scene */
+/* A label you can press for its definition: the dotted underline is the cue; it takes pointer and focus only while shown. */
+button.note { margin: 0; padding: 2px 0; border: 0; background: none; font: inherit; font-size: 16px; cursor: pointer; text-decoration: underline dotted var(--gold); text-decoration-thickness: 1.5px; text-underline-offset: 5px; transition: color 160ms var(--ease-out), text-decoration-color 160ms var(--ease-out); }
+.live .notes button.note { pointer-events: none; }
+.live .notes button.note[data-live] { pointer-events: auto; }
+button.note:hover { color: var(--champagne); text-decoration-style: solid; }
+button.note:active { color: var(--gold); }
+button.note:focus-visible { outline: 2px solid var(--copper); outline-offset: 4px; border-radius: 2px; }
+/* The definition: a short card on a soft shade that melts into the scene, no edge. Placed beside its label by walk.js. */
+.def { position: fixed; inset: auto; margin: 0; max-width: calc(30ch + 100px); padding: 44px 50px; border: 0; color: var(--body); font-size: 16px; line-height: 1.5; text-shadow: 0 0 8px rgb(12 12 11 / 0.85), 0 1px 2px rgb(12 12 11 / 0.9);
+  background: radial-gradient(closest-side, rgb(12 12 11 / 0.86) 35%, rgb(12 12 11 / 0.5) 72%, rgb(12 12 11 / 0) 100%); opacity: 0; transform: translateY(6px);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out), overlay 200ms allow-discrete, display 200ms allow-discrete; }
+.def:popover-open { opacity: 1; transform: none; }
+@starting-style { .def:popover-open { opacity: 0; transform: translateY(6px); } }
+.def::backdrop { background: none; }
+.def strong { display: block; font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.15; color: var(--ink); margin-bottom: 6px; }
+.def p { max-width: none; }
+@media (prefers-reduced-motion: reduce) { .def, .def:popover-open { transform: none; } }
 
 .stops { display: none; }
 .live .stops { display: flex; flex-wrap: wrap; gap: 6px 22px; position: absolute; z-index: 2; left: max(32px, env(safe-area-inset-left, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); margin: 0; padding: 10px 20px; border-radius: 999px; background: var(--panel); list-style: none; font-size: 16px; line-height: 1.3; color: var(--muted); }
 .stops li { display: flex; align-items: center; gap: 9px; transition: color 300ms var(--ease-out); }
+.stops button { margin: 0; padding: 4px 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; transition: color 160ms var(--ease-out); }
+.stops button:hover { color: var(--ink); }
+.stops button:active { color: var(--gold); }
+.stops button:focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; border-radius: 4px; }
 .stops li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); opacity: 0; transition: opacity 300ms var(--ease-out); }
 .stops li[data-past] { color: var(--body); }
 .stops li[aria-current] { color: var(--ink); }
@@ -120,9 +143,21 @@ p { max-width: 34ch; text-wrap: pretty; }
 .live .group .deeper { opacity: 0; transition: opacity 260ms var(--ease-out); }
 .live .group[data-state="on"] .deeper { opacity: 1; transition-delay: 420ms; }
 .pinned .deeper, .still .deeper { transition: none !important; }
-/* The ending's button: sized to its words, and it arrives with the group like Go deeper does. */
+/* The ending's button, a cream keycap like the ones on the board: its gold-brown skirt is the key's own side. It lifts
+   on hover, sinks when pressed, and taps itself once after it arrives as an invitation. Arrives with the group. */
 .again { justify-self: start; }
-.live .group .again { opacity: 0; transition: opacity 260ms var(--ease-out), transform 160ms var(--ease-out), background-color 160ms var(--ease-out); }
+.keycap { display: inline-flex; align-items: center; gap: 10px; padding: 13px 24px 14px; border-radius: 12px; background: #efe5d3; color: #1c1611; font-size: 16px; font-weight: 500; letter-spacing: -0.005em; text-decoration: none; box-shadow: 0 5px 0 #8a7347, 0 8px 18px rgb(0 0 0 / 0.35); }
+.keycap svg { flex: none; }
+.keycap:hover { transform: translateY(-1px); box-shadow: 0 6px 0 #8a7347, 0 10px 20px rgb(0 0 0 / 0.38); }
+.keycap:active { transform: translateY(4px); box-shadow: 0 1px 0 #8a7347, 0 3px 8px rgb(0 0 0 / 0.3); }
+.keycap:focus-visible { outline: 2px solid var(--copper); outline-offset: 5px; }
+.live .group .again { opacity: 0; transition: opacity 260ms var(--ease-out), transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out); }
+.live .group[data-state="on"] .keycap { animation: keytap 700ms var(--ease-out) 1.5s 1; }
+@keyframes keytap { 40% { transform: translateY(4px); box-shadow: 0 1px 0 #8a7347, 0 3px 8px rgb(0 0 0 / 0.3); } }
+.still .keycap, .pinned .keycap { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .keycap { animation: none !important; } }
+/* On phones the stop list shows only the current stop, so the ending offers all six here instead. */
+.end-stops { display: none; margin: 0; padding: 0; list-style: none; }
 .live .group[data-state="on"] .again { opacity: 1; transition-delay: 420ms, 0ms, 0ms; }
 .pinned .again, .still .again { transition: none !important; }
 .live .gauge { display: block; position: absolute; inset: 0; pointer-events: none; opacity: 0; }
@@ -140,6 +175,9 @@ p { max-width: 34ch; text-wrap: pretty; }
   .scrim { background: linear-gradient(0deg, rgb(12 12 11 / 0.92) 0%, rgb(12 12 11 / 0.8) 26%, rgb(12 12 11 / 0.4) 42%, transparent 58%); }
   .live .notes { display: none; }
   .live .stage:has(.group[data-state="on"] .deeper[open]) .scrim { background: linear-gradient(0deg, rgb(12 12 11 / 0.95) 0%, rgb(12 12 11 / 0.88) 55%, rgb(12 12 11 / 0.5) 72%, transparent 86%); } /* opened, the words climb higher, so the shade does too */
+  .live .end-stops { display: flex; flex-wrap: wrap; gap: 8px; }
+  .end-stops .quiet { padding: 8px 14px; font-weight: 400; border: 0; font-family: inherit; cursor: pointer; }
+  .live .group[data-stop="end"] > p { display: none; } /* room for the stops, with the letter above still in view */
   .live .group:has(.deeper[open]) > p:not(.closed) { display: none; } /* on a phone the points stand in for the lead line, so the scene above stays in view */
   .live .deeper dl { max-height: 34svh; overflow-y: auto; overscroll-behavior: contain; gap: 14px; } /* the scene above stays in view */
   .deeper dt { font-size: 20px; }
