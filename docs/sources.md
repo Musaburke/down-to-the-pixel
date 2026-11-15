@@ -31,6 +31,18 @@ The wire colours in the cutaway follow the site's palette, not the USB colour co
 
 No figures. The copy says the keyboard driver reads the key's code and the system maps it to a letter through the layout before passing it to the program (standard operating-system keyboard handling). The die is drawn, not a real chip's layout, and is not labelled as cores. The capacitors on the package are decoupling capacitors, which steady the chip's supply.
 
+## "Go deeper" points (all stops)
+
+No new figures; the 2 mm, 4 mm, 30 cN and 100 cN come from the CHERRY table above. The other claims are general, standard behaviour:
+- Linear switches feel the same all the way down; tactile and clicky switches add a bump or a click (CHERRY product range, same site).
+- Keyboard keys are wired as a matrix of rows and columns that the keyboard's controller scans repeatedly ("many times a second", no rate given).
+- One keyboard types in many languages because the computer applies the layout (USB HID Usage Tables, above).
+- USB data travels as a differential pair; twisting makes interference common to both wires (USB 2.0 Specification, above).
+- The processor handles incoming input through interrupts: it pauses its current work briefly, deals with the input, then resumes (standard operating-system behaviour).
+- A processor's logic is built from transistors, which act as electrically controlled switches with no moving parts.
+
+TODO(musa): skim these before going public; none states a number.
+
 ## Textures (Poly Haven, CC0)
 
 Every photo texture comes from Poly Haven, licensed CC0 (public domain: free to use, no credit required). Downloaded 15 Nov 2026 through the Poly Haven API and converted to WebP. Files are in `public/assets/<id>/`.

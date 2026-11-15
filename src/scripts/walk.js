@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS } from './choreo/timeline.ts';
+import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu } from './choreo/timeline.ts';
 import { clamp, seg, lerp, part } from './choreo/seg.ts';
 import { makeFlow } from './choreo/flow.ts';
 import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from './three/textures.ts';
@@ -7,7 +7,7 @@ import { roundBox, strip, boxUV } from './three/geometry.ts';
 import { DESK_Y, BOARD, CAP, capGeo, decalGeo, sculpt, buildBoard } from './three/stops/board.ts';
 import { buildCorner } from './three/stops/corner.ts';
 import { buildCable } from './three/stops/cable.ts';
-import { buildCpu } from './three/stops/cpu.ts';
+import { buildCpu, CHIP } from './three/stops/cpu.ts';
 import { split as splitText } from './text.ts';
 
 const root = document.documentElement;
@@ -270,6 +270,7 @@ if (renderer) {
   const cable = buildCable({ sleeve: sleeveMat, wood: plugWood, brass: physical({ color: 0xd2bd8f, metalness: 0.7, roughness: 0.4, envMapIntensity: 2, normalMap: pbt, normalScale: new THREE.Vector2(0.03, 0.03) }) }); scene.add(cable.group); cable.group.visible = false;
   const cableRim = new THREE.DirectionalLight(0xffd2a0, 0); cableRim.position.set(7, -6, -11); cableRim.target.position.set(0, -14, 0); scene.add(cableRim, cableRim.target); // warm edge light from behind, for the lead only
   const cpu = buildCpu(); scene.add(cpu.group); cpu.group.visible = false;
+  const cpuKey = new THREE.SpotLight(0xffd3a6, 0, 0, 0.55, 1, 2); cpuKey.position.set(CHIP.x - 5, CHIP.y + 8, CHIP.z - 6); cpuKey.target.position.copy(CHIP); scene.add(cpuKey, cpuKey.target); // a warm key from behind and left of the processor: a pool of light that falls off, its glare kept out of the camera's line
   const cpart = (k, ease = 'inOut') => { const [a, b] = CABLE_PARTS[k], x = seg(fullP, a, b); return ease === 'linear' ? x : x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
   let fullP = 0;
 
@@ -384,11 +385,11 @@ if (renderer) {
     };
   };
   const cableLabels = labels('.cable-notes', [[-110, -40, -1], [120, -30, 1], [120, 40, 1], [110, 30, 1]]);
-  const cpuLabels = labels('.cpu-notes', [[-120, -70, -1], [-150, 130, -1], [-70, 95, -1]]);
+  const cpuLabels = labels('.cpu-notes', [[-200, -150, -1], [-150, 130, -1], [130, 110, 1]]);
   function annotateLater() {
     cableLabels(cpart('notes', 'linear') * (1 - seg(fullP, CABLE_END - 0.03, CABLE_END)), cable.anchors);
     const lidK = seg(fullP, ...CPU_PARTS.lid);
-    cpuLabels(seg(fullP, ...CPU_PARTS.notes), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0, 0.3) : i === 1 ? seg(lidK, 0.7, 1) : 1)); // the lid's label leaves with it; the die's waits for it to show
+    cpuLabels(seg(fullP, ...CPU_PARTS.notes), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0.15, 0.4) : i === 1 ? seg(lidK, 0.7, 1) : 1)); // the lid's label leaves with it; the die's waits for it to show
   }
 
   const gauge = document.querySelector('.gauge'), gaugeEls = [...gauge.querySelectorAll('.note')];
@@ -474,7 +475,9 @@ if (renderer) {
     const r = 1 - seg(op, 0.18, 0.3); // how much of the room's light is in play; all of it fades on the push-in, no step in the key lighting
     lamp.intensity = LAMP_CD * r; bounce.intensity = 0.36 * r;
     corner.setLight(r, now, reduced || pinnedP !== null); corner.group.visible = pre(sp) < P0 + 0.02; // past the hero the fog has closed over the corner
-    key.intensity = 2.6 * (1 - r); fill.intensity = 0.55 * (1 - r); rim.intensity = 1.1 * (1 - 0.8 * r); hemi.intensity = 0.4 - 0.1 * r;
+    const chipLit = seg(sp, CABLE_END, inCpu(0.3)); // on the board, the even studio light gives way to the processor's own key
+    cpuKey.intensity = 260 * chipLit;
+    key.intensity = 2.6 * (1 - r) * (1 - 0.55 * chipLit); fill.intensity = 0.55 * (1 - r) * (1 - 0.4 * chipLit); rim.intensity = 1.1 * (1 - 0.8 * r) * (1 - 0.85 * chipLit); hemi.intensity = (0.4 - 0.1 * r) * (1 - 0.5 * chipLit);
     scene.environmentIntensity = 1 - 0.45 * r;
     renderer.render(scene, camera);
     window.__programs = renderer.info.programs.length;

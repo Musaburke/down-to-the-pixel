@@ -48,23 +48,23 @@ import Base from '../layouts/Base.astro';
         <div class="group" data-stop="key">
           <h2 data-split>It starts with a <em>press</em>.</h2>
           <p data-split>Pressing a key pushes it down. That small movement is the whole input.</p>
-          <details class="deeper"><summary>Go deeper</summary><p>These figures are for one common switch, the CHERRY MX Red. The key travels 4 mm all the way down, but the press registers at 2 mm, halfway. The rest of the travel is extra room before the key stops.</p></details>
+          <details class="deeper"><summary>Go deeper</summary><dl><div><dt>All the switch needs</dt><dd>Your finger only moves a small plastic stem down inside the switch. Everything that follows starts from that movement.</dd></div><div><dt>Halfway is enough</dt><dd>These figures are for one common switch, the CHERRY MX Red. It travels 4 mm all the way down but registers at 2 mm, so a light press counts.</dd></div><div><dt>Ready for the next one</dt><dd>A spring pushes the key back up as soon as you let go, so the next press can start straight away.</dd></div></dl></details>
         </div>
         <div class="group" data-stop="switch">
           <h2 data-split>The switch closes <em>a circuit</em>.</h2>
           <p data-split>Under the cap, two metal contacts are held apart by a spring. Press down and they touch, and a signal can flow.</p>
-          <details class="deeper"><summary>Go deeper</summary><p>This is a linear switch: no bump or click on the way down. The spring pushes back with 30 cN at the start and 100 cN at the bottom. Once the contacts touch, the chip inside the keyboard sees the closed circuit and reports that key.</p></details>
+          <details class="deeper"><summary>Go deeper</summary><dl><div><dt>Smooth all the way down</dt><dd>This is a linear switch: it feels the same from top to bottom. Tactile and clicky switches add a bump or a click so you can feel the press register.</dd></div><div><dt>Firmer as it goes</dt><dd>The spring pushes back with 30 cN at the start and 100 cN at the bottom. That rising push is what sends the key back up.</dd></div><div><dt>The keyboard keeps checking</dt><dd>The keys are wired in a grid of rows and columns. A chip in the keyboard checks the grid many times a second, and a closed circuit tells it which key is down.</dd></div></dl></details>
           <p class="closed">Circuit closed</p>
         </div>
         <div class="group" data-stop="cable">
           <h2 data-split>Down the wire as <em>a message</em>.</h2>
           <p data-split>A chip in the keyboard turns the closed circuit into a short coded message and sends it down the cable, along two thin wires twisted round each other.</p>
-          <details class="deeper"><summary>Go deeper</summary><p>The keyboard never sends a letter. It sends a code for the key's position, and the computer decides which letter that key means in your layout. The two data wires are twisted together so that interference from outside hits both the same way and cancels out.</p></details>
+          <details class="deeper"><summary>Go deeper</summary><dl><div><dt>A code for the key</dt><dd>The keyboard sends a number for the key's position. The computer decides which letter that key means, which is why one keyboard can type in many languages.</dd></div><div><dt>Two wires as opposites</dt><dd>The message travels down the pair as opposite signals: as one wire goes up, the other goes down. The computer reads the difference between them.</dd></div><div><dt>Why they are twisted</dt><dd>Twisting keeps both wires equally close to any outside interference. It nudges both the same way, so the difference between them stays clean.</dd></div></dl></details>
         </div>
         <div class="group" data-stop="cpu">
           <h2 data-split>Into the <em>processor</em>.</h2>
           <p data-split>On the computer's main board, the message runs along thin copper tracks to the processor. Under its metal lid is a sliver of silicon covered in switches far too small to see.</p>
-          <details class="deeper"><summary>Go deeper</summary><p>The processor runs all of the computer's software. A small part of it, the keyboard driver, reads the key's code; the system then looks up which letter that key means in your layout and hands it to the program you are typing into.</p></details>
+          <details class="deeper"><summary>Go deeper</summary><dl><div><dt>A tap on the shoulder</dt><dd>When the message arrives, the processor pauses what it is doing for a moment to deal with it, then goes back to its other work.</dd></div><div><dt>From code to letter</dt><dd>A small program, the keyboard driver, reads the key's code. The system looks it up in your keyboard layout and hands the letter to the program you are typing into.</dd></div><div><dt>Switches all the way down</dt><dd>The silicon is covered in transistors: switches like the one under the key, only far smaller and with no moving parts. Reading your key press is these switches turning on and off in patterns.</dd></div></dl></details>
         </div>
       </div>
     </div>

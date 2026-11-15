@@ -44,7 +44,7 @@ export const SPAN = TRAVEL.approved / TOTAL;
 export const CABLE_END = (TRAVEL.approved + TRAVEL.cable) / TOTAL;
 export const pre = (p: number): number => Math.min(1, p / SPAN);
 const after = (t: number): number => SPAN + t * (CABLE_END - SPAN); // 0..1 across the cable's share of the travel
-const inCpu = (t: number): number => CABLE_END + t * (1 - CABLE_END); // 0..1 across the processor's share
+export const inCpu = (t: number): number => CABLE_END + t * (1 - CABLE_END); // 0..1 across the processor's share
 export const CABLE_SHOTS: Shot[] = [ // the lead falls straight down, so the camera travels down with the scroll
   { id: 'drop',  t: after(0.16), pos: [3.0, -2.0, 9.0],  target: [0.3, -4.2, 0],  fov: 28, roll: 0, ease: 'inOut'  }, // follows the bead out of the switch onto the lead
   { id: 'run',   t: after(0.36), pos: [2.2, -6.6, 5.0],  target: [0.2, -8.6, 0],  fov: 30, roll: 0, ease: 'inOut'  }, // down the braid
@@ -52,19 +52,19 @@ export const CABLE_SHOTS: Shot[] = [ // the lead falls straight down, so the cam
   { id: 'wires', t: after(0.76), pos: [1.7, -14.5, 3.7], target: [0.15, -15.8, 0], fov: 30, roll: 0, ease: 'inOut'  }, // the twisted pair carrying the bits
   { id: 'plug',  t: after(1),    pos: [2.4, -22.4, 5.8], target: [0.3, -25.4, 0], fov: 30, roll: 0, ease: 'linear' }, // into the plug
 ];
-// Stop 4: down into the socket, along the tracks over the board, then straight down onto the processor.
+// Stop 4: down into the socket, along the tracks over the board, round to the processor as its lid lifts, then down onto the die.
 export const CPU_SHOTS: Shot[] = [
   { id: 'socket', t: inCpu(0.2),  pos: [2.2, -24.3, 4.4],  target: [0.8, -27.05, -0.9], fov: 32, roll: 0, ease: 'inOut'  }, // the plug in its socket, the tracks leaving it
-  { id: 'tracks', t: inCpu(0.44), pos: [3.6, -21.6, 2.4],  target: [5.4, -27.05, -4.2], fov: 34, roll: 0, ease: 'inOut'  }, // higher, looking along the tracks to the chip
-  { id: 'over',   t: inCpu(0.7),  pos: [9.0, -18.2, -3.9], target: [9.0, -27.05, -7],   fov: 32, roll: 0, ease: 'inOut'  }, // top-down over the package as the lid lifts
-  { id: 'die',    t: 1,           pos: [9.0, -21.9, -5.2], target: [9.0, -26.95, -7],   fov: 30, roll: 0, ease: 'linear' }, // down onto the die as it lights
+  { id: 'tracks', t: inCpu(0.44), pos: [2.0, -22.4, 3.0],  target: [4.8, -27.05, -3.6], fov: 34, roll: 0, ease: 'inOut'  }, // higher, looking along the tracks to the chip, the plug still at the edge of frame
+  { id: 'over',   t: inCpu(0.7),  pos: [5.0, -22.4, -0.4], target: [9.4, -26.9, -7.4],  fov: 32, roll: 0, ease: 'inOut'  }, // a three-quarter view of the package, so the lid's lift reads
+  { id: 'die',    t: 1,           pos: [7.4, -22.4, -3.0], target: [9.2, -27.0, -7.1],  fov: 30, roll: 0, ease: 'linear' }, // in over the die as it lights, still at an angle so its edge and sheen show
 ];
 export const CPU_PARTS: Record<string, [number, number]> = {
   tracks: [inCpu(0.08), inCpu(0.62)], // the bead runs the tracks to the package
-  lid:    [inCpu(0.52), inCpu(0.8)],  // the lid lifts and slides off
+  lid:    [inCpu(0.5), inCpu(0.8)],   // the lid lifts and slides off
   into:   [inCpu(0.62), inCpu(0.8)],  // the bead crosses onto the die
   wave:   [inCpu(0.74), 1],           // the die lights from where it came in
-  notes:  [inCpu(0.4), inCpu(0.5)],   // labels arrive over the package
+  notes:  [inCpu(0.44), inCpu(0.52)], // labels arrive over the package, the lid's just as it starts to lift
 };
 // Cable parts, in full progress p.
 export const CABLE_PARTS: Record<string, [number, number]> = {

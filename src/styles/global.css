@@ -99,7 +99,17 @@ p { max-width: 34ch; text-wrap: pretty; }
 .stops li[data-past] { color: var(--body); }
 .stops li[aria-current] { color: var(--ink); }
 .stops li[aria-current]::before { opacity: 1; }
-.deeper { font-size: 16px; max-width: 38ch; }
+.deeper { font-size: 16px; max-width: 42ch; }
+/* Opened, three short points: a serif title over a plain sentence or two, spaced apart rather than run together. */
+.deeper dl { display: grid; gap: 18px; margin: 20px 0 0; }
+.deeper dt { font-family: var(--serif); font-size: 22px; line-height: 1.15; color: var(--ink); letter-spacing: 0.01em; }
+.deeper dd { margin: 5px 0 0; color: var(--body); line-height: 1.55; text-wrap: pretty; }
+.deeper[open] dl > div { animation: deeper-rise 520ms var(--ease-out) both; }
+.deeper[open] dl > div:nth-child(2) { animation-delay: 70ms; }
+.deeper[open] dl > div:nth-child(3) { animation-delay: 140ms; }
+@keyframes deeper-rise { from { opacity: 0; transform: translateY(8px); } }
+.still .deeper[open] dl > div, .pinned .deeper[open] dl > div { animation: none; }
+@media (prefers-reduced-motion: reduce) { .deeper[open] dl > div { animation: none; } }
 .deeper summary { cursor: pointer; color: var(--ink); width: max-content; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 4px; transition: color 160ms var(--ease-out); }
 .deeper summary:hover { color: var(--champagne); }
 .deeper summary:active { color: var(--gold); }
@@ -124,6 +134,9 @@ p { max-width: 34ch; text-wrap: pretty; }
   .live .group { align-self: end; }
   .scrim { background: linear-gradient(0deg, rgb(12 12 11 / 0.92) 0%, rgb(12 12 11 / 0.8) 26%, rgb(12 12 11 / 0.4) 42%, transparent 58%); }
   .live .notes { display: none; }
+  .live .stage:has(.group[data-state="on"] .deeper[open]) .scrim { background: linear-gradient(0deg, rgb(12 12 11 / 0.95) 0%, rgb(12 12 11 / 0.88) 55%, rgb(12 12 11 / 0.5) 72%, transparent 86%); } /* opened, the words climb higher, so the shade does too */
+  .live .deeper dl { max-height: 34svh; overflow-y: auto; overscroll-behavior: contain; gap: 14px; } /* the scene above stays in view */
+  .deeper dt { font-size: 20px; }
 }
 @media (max-height: 560px) and (min-width: 761px) { .live .panel { padding: 24px 28px; } }
 
