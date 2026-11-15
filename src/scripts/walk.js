@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx, PX_PARTS, inPx, END_PARTS, inEnd, STOP_AT } from './choreo/timeline.ts';
+import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS, CABLE_END, CPU_PARTS, inCpu, GFX_PARTS, inGfx, PX_PARTS, inPx, END_PARTS, inEnd, STOP_AT, BEATS } from './choreo/timeline.ts';
 import { clamp, seg, lerp, part } from './choreo/seg.ts';
 import { makeFlow } from './choreo/flow.ts';
 import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from './three/textures.ts';
@@ -484,10 +484,11 @@ if (renderer) {
   // Jumps (the stop list, "Press it again"): a short fade to dark, the page lands at that stop and the spring is snapped
   // there, so the camera never rewinds through everything in between; then the fade lifts. Reduced motion: straight there.
   const cover = document.querySelector('.cover'); let jumping = false;
+  const yFor = (t) => walk.getBoundingClientRect().top + scrollY + t * (walk.offsetHeight - innerHeight); // the page offset for progress t (readScroll's inverse)
   const jumpTo = (target, after) => {
     if (jumping) return;
     const land = () => {
-      scrollTo({ top: walk.getBoundingClientRect().top + scrollY + target * (walk.offsetHeight - innerHeight), behavior: 'instant' });
+      scrollTo({ top: yFor(target), behavior: 'instant' });
       if (!reduced) { p = sp = target; vel = 0; raw = true; dirty = true; }
       if (textIdx !== -2) { textIdx = -1; setText(target); }
       after?.();
@@ -502,6 +503,38 @@ if (renderer) {
     jumpTo(0, () => h1?.focus({ preventScroll: true })); // the opening's words are live again before focus moves to them
   });
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => jumpTo(STOP_AT[b.dataset.go])));
+  // Keyboard: Down, Space and Page Down glide to the next beat, Up, Shift+Space and Page Up to the one before; a press
+  // during a glide steps on from where that glide is heading. The wheel and touch are left alone (and stop a glide).
+  // Past the last beat, or below the walk, keys scroll as normal. Reduced motion: straight there.
+  let glide = null;
+  const cancelGlide = () => { if (glide) { cancelAnimationFrame(glide.raf); glide = null; } };
+  const glideTo = (t) => {
+    cancelGlide();
+    const from = scrollY, to = yFor(t);
+    if (reduced) { scrollTo({ top: to, behavior: 'instant' }); return; }
+    const dur = clamp(Math.abs(to - from) / 2.2, 650, 1500), t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / dur), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      scrollTo({ top: from + (to - from) * e, behavior: 'instant' });
+      if (k < 1) glide.raf = requestAnimationFrame(step); else glide = null;
+    };
+    glide = { t, raf: requestAnimationFrame(step) };
+  };
+  if (pinnedP === null) {
+    addEventListener('wheel', cancelGlide, { passive: true }); addEventListener('touchstart', cancelGlide, { passive: true });
+    addEventListener('keydown', (e) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = document.activeElement?.tagName ?? '';
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (e.key === ' ' && /^(BUTTON|A|SUMMARY)$/.test(tag))) return; // Space presses a focused control
+      const down = e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey), up = e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey);
+      if (!down && !up) return;
+      const at = glide ? glide.t : p;
+      if ((down && at >= 1 - 1e-3) || scrollY > yFor(1) + 4) return;
+      const next = down ? BEATS.find((b) => b > at + 0.002) : [...BEATS].reverse().find((b) => b < at - 0.002);
+      if (next === undefined) return;
+      e.preventDefault(); glideTo(next);
+    });
+  }
   // Definitions open beside their label (below it, or above near the bottom), clear of the words, and close on scroll.
   let openAt = 0;
   document.querySelectorAll('.def').forEach((d) => d.addEventListener('toggle', (e) => {

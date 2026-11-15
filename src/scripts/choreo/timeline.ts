@@ -121,6 +121,17 @@ export const CABLE_PARTS: Record<string, [number, number]> = {
   notes:    [after(0.45), after(0.55)], // engraved labels arrive as the stripped section comes into view
 };
 export const RIG: Shot[] = [...[...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease }))].map((s): Shot => ({ ...s, t: s.t * SPAN })), ...CABLE_SHOTS, ...CPU_SHOTS, ...GFX_SHOTS, ...PX_SHOTS, ...END_SHOTS];
+// The moments the keyboard steps between (Down, Space and Page Down forward; Up and Page Up back), so one press is one
+// clear step in the story and nothing is skipped: each lands where its part has just finished and its words are up.
+export const BEATS: number[] = [
+  0, at(0) * SPAN,                                        // the desk; the title on the board
+  at(0.36) * SPAN, at(0.72) * SPAN, at(0.95) * SPAN,      // the key pressed; the switch opened, labelled; the circuit closed
+  after(0.3), after(0.55), after(0.78), after(1),         // the lead; the cut-away layers; the twisted pair; the plug
+  inCpu(0.25), inCpu(0.5), inCpu(0.82), inCpu(1),         // the socket; the package, labelled; the lid off; the die lit
+  inGfx(0.6), inGfx(1),                                   // the outline drawn; the pixels
+  inPx(0.32), inPx(1),                                    // the letter on the screen; one pixel's three lights
+  1,                                                      // the end
+];
 // Where each stop in the list takes you: just after its words arrive (the graphics after its flash).
 export const STOP_AT: Record<string, number> = {
   key: at(0.17) * SPAN + 0.003, switch: at(0.6) * SPAN + 0.003, cable: after(0.22) + 0.003,
