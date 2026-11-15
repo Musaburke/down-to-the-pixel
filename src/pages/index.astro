@@ -18,6 +18,12 @@ import Base from '../layouts/Base.astro';
         <span class="note">The spring, 45 cN to press</span>
         <span class="note">Contacts touch at 2 mm</span>
       </div>
+      <div class="notes cable-notes" aria-hidden="true">
+        <svg><line/><line/><line/><circle r="4"/><circle r="4"/><circle r="4"/></svg>
+        <span class="note">The braid, cut back</span>
+        <span class="note">The data pair, twisted together</span>
+        <span class="note">Power and ground</span>
+      </div>
       <div class="gauge" aria-hidden="true">
         <svg><line/><line/><line/><line/><circle r="4.5"/></svg>
         <span class="note">At rest</span>
@@ -25,7 +31,7 @@ import Base from '../layouts/Base.astro';
         <span class="note">4 mm all the way down</span>
       </div>
       <ol class="stops" aria-label="The six stops of the walkthrough">
-        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li>The cable</li><li>The processor</li><li>Graphics</li><li>The pixel</li>
+        <li data-stop="key">The key</li><li data-stop="switch">The switch</li><li data-stop="cable">The cable</li><li>The processor</li><li>Graphics</li><li>The pixel</li>
       </ol>
       <div class="panel">
         <div class="group" data-stop="hero">
@@ -43,17 +49,22 @@ import Base from '../layouts/Base.astro';
           <details class="deeper"><summary>Go deeper</summary><p>This is a linear switch: no bump or click on the way down. The spring pushes back with 30 cN at the start and 100 cN at the bottom. Once the contacts touch, the chip inside the keyboard sees the closed circuit and reports that key.</p></details>
           <p class="closed">Circuit closed</p>
         </div>
+        <div class="group" data-stop="cable">
+          <h2 data-split>Down the wire as <em>a message</em>.</h2>
+          <p data-split>A chip in the keyboard turns the closed circuit into a short coded message and sends it down the cable, along two thin wires twisted round each other.</p>
+          <details class="deeper"><summary>Go deeper</summary><p>The keyboard never sends a letter. It sends a code for the key's position, and the computer decides which letter that key means in your layout. The two data wires are twisted together so that interference from outside hits both the same way and cancels out.</p></details>
+        </div>
       </div>
     </div>
   </section>
   <section class="next">
-    <h2>Next, <em>the cable</em>.</h2>
-    <p>From here the signal leaves the keyboard. The full walkthrough follows it to the screen.</p>
+    <h2>Next, <em>the processor</em>.</h2>
+    <p>From here the message reaches the computer. The full walkthrough follows it to the screen.</p>
     <a class="quiet" href="#top">Back to the key</a>
   </section>
 </main>
 <footer class="foot">
-  <span>A look sample: two of the six stops.</span>
+  <span>A look sample: three of the six stops.</span>
   <a href="#top">Back to the top</a>
 </footer>
 </Base>

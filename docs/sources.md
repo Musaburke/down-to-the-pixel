@@ -17,6 +17,16 @@ Source: CHERRY, product page "CHERRY MX RED", https://www.cherry.de/en-gb/produc
 | Push at the bottom | 100 cN | Properties: "Final force 100 cN" |
 
 
+## The cable (stop 3)
+
+The cable stop shows no figures. Its copy makes two claims, both standard USB behaviour:
+- A keyboard sends a code for the key's position, not a letter; the computer maps it to a letter through the layout (USB HID Usage Tables, Keyboard/Keypad page). https://www.usb.org/hid
+- The data wires are a twisted pair carrying the signal as opposites, so interference common to both cancels (USB 2.0 Specification, differential signalling). https://www.usb.org/document-library/usb-20-specification
+
+TODO(musa): these two links were not re-read on 15 Nov 2026; check them before going public.
+
+The wire colours in the cutaway follow the site's palette, not the USB colour code; the drawing is illustrative.
+
 ## Textures (Poly Haven, CC0)
 
 Every photo texture comes from Poly Haven, licensed CC0 (public domain: free to use, no credit required). Downloaded 15 Nov 2026 through the Poly Haven API and converted to WebP. Files are in `public/assets/<id>/`.

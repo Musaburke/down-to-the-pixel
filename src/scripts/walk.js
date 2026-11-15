@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { P0, old, RIG, TEXT_RIG } from './choreo/timeline.ts';
+import { P0, old, RIG, TEXT_RIG, SPAN, pre, CABLE_PARTS } from './choreo/timeline.ts';
 import { clamp, seg, lerp, part } from './choreo/seg.ts';
 import { makeFlow } from './choreo/flow.ts';
 import { tex, grainNormal, blobTex, grainTile, legend, softRect, braidTex } from './three/textures.ts';
 import { roundBox, strip, boxUV } from './three/geometry.ts';
 import { DESK_Y, BOARD, CAP, capGeo, decalGeo, sculpt, buildBoard } from './three/stops/board.ts';
 import { buildCorner } from './three/stops/corner.ts';
+import { buildCable, UNDER_SWITCH, RIDE_END } from './three/stops/cable.ts';
 import { split as splitText } from './text.ts';
 
 const root = document.documentElement;
@@ -242,9 +243,9 @@ if (renderer) {
     segName = `${a.id} > ${b.id}`;
     path.getPoint(u, camPos); aim.getPoint(u, camTgt); lens.getPoint(u, lensV);
     const aspect = W / H;
-    if (aspect < 1) camPos.sub(camTgt).multiplyScalar(1 + (1 - aspect) * 1.5 * seg(p, 0.13, P0)).add(camTgt); // portrait: step back to fit
+    if (aspect < 1) camPos.sub(camTgt).multiplyScalar(1 + (1 - aspect) * 1.5 * seg(pre(p), 0.13, P0)).add(camTgt); // portrait: step back to fit
     if (!reduced) {
-      const drift = 1 - seg(old(p), 0.04, 0.16); // hero only: slow drift
+      const drift = 1 - seg(old(pre(p)), 0.04, 0.16); // hero only: slow drift
       camPos.x += Math.sin(now * 0.00021) * 0.35 * drift; camPos.y += Math.sin(now * 0.00017) * 0.18 * drift;
       camPos.x += pointer.sx * 0.05; camPos.y -= pointer.sy * 0.035;
     }
@@ -257,10 +258,16 @@ if (renderer) {
     else camera.setViewOffset(W, H, 0, H * 0.13, W, H);
     const dist = camPos.distanceTo(camTgt);
     camera.near = Math.max(0.05, dist * 0.008); camera.updateProjectionMatrix();
-    const open = 1 - seg(p, 0.08, P0); // the opening lets the eye travel to the wall; by the hero the fog is as it was
+    const open = 1 - seg(pre(p), 0.08, P0); // the opening lets the eye travel to the wall; by the hero the fog is as it was
     scene.fog.near = dist * (0.85 + 0.35 * open); scene.fog.far = dist * (2.6 + 1.2 * open);
     return dist;
   }
+
+  /* ---------- stop 3: the cable ---------- */
+  const cable = buildCable({ sleeve: sleeveMat }); scene.add(cable.group); cable.group.visible = false;
+  const cableRim = new THREE.DirectionalLight(0xffd2a0, 0); cableRim.position.set(26, -1, -12); cableRim.target.position.set(14, -5.8, 0); scene.add(cableRim, cableRim.target); // warm edge light from behind, for the lead only
+  const cpart = (k, ease = 'inOut') => { const [a, b] = CABLE_PARTS[k], x = seg(fullP, a, b); return ease === 'linear' ? x : x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+  let fullP = 0;
 
   /* ---------- parts ---------- */
   const PRE = 0.2; // 2 mm pre-travel at this scale (CHERRY MX Red, see sources.md)
@@ -296,6 +303,12 @@ if (renderer) {
     beadAt.lerp(v2, part(p, 'beadToA'));
     const j = part(p, 'beadJump');
     if (j > 0) { beadAt.x = lerp(v2.x, contactB.position.x + 0.05, j); beadAt.y = lerp(v2.y, contactB.position.y + 0.64, j) + Math.sin(j * Math.PI) * 0.3; }
+    if (fullP > SPAN) { // stop 3: the bead falls out of the switch onto the lead, then rides the data pair
+      const drop = cpart('beadDrop'), ride = cpart('ride', 'linear'), u = UNDER_SWITCH + (RIDE_END - UNDER_SWITCH) * (1 - (1 - ride) * (1 - ride));
+      cable.beadAt(u, v1); if (drop < 1) beadAt.lerp(cable.beadAt(UNDER_SWITCH, v2), drop); else beadAt.copy(v1);
+      cable.setFlow(ride * 0.5 + (reduced || pinnedP !== null ? 0 : now * 0.000035), seg(fullP, CABLE_PARTS.ride[0], CABLE_PARTS.ride[0] + 0.06));
+    } else cable.setFlow(0, 0);
+    cable.group.visible = fullP > SPAN + 0.005; cableRim.intensity = 2.4 * seg(fullP, SPAN, SPAN + 0.08);
     const shimmer = reduced ? 1 : 1 + Math.sin(now * 0.004) * 0.05 + Math.sin(now * 0.0113) * 0.03;
     const flare = 1 + 0.6 * Math.sin(Math.PI * seg(p, 0.88, 0.97));
     const size = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.1 * shimmer * flare;
@@ -316,7 +329,7 @@ if (renderer) {
   const anchor = new THREE.Vector3();
   let notesOn = -1;
   function annotate(p) {
-    const o = W > 760 ? seg(p, 0.66, 0.74) : 0;
+    const o = W > 760 ? seg(p, 0.66, 0.74) * (1 - seg(fullP, SPAN, SPAN + 0.05)) : 0; // gone as the bead drops to the cable
     if (o !== notesOn) { notes.style.opacity = o.toFixed(3); notesOn = o; }
     if (o === 0) return;
     camera.updateMatrixWorld();
@@ -333,6 +346,26 @@ if (renderer) {
       noteDots[i].setAttribute('cx', x.toFixed(1)); noteDots[i].setAttribute('cy', y.toFixed(1));
       const el = noteEls[i], gap = 10 * side;
       el.style.transform = `translate(${(ex + gap).toFixed(1)}px, ${ey.toFixed(1)}px) translate(${side > 0 ? 0 : -100}%, -50%)`;
+    });
+  }
+
+  const cnotes = document.querySelector('.cable-notes'), cnoteEls = [...cnotes.querySelectorAll('.note')];
+  const cnoteLines = [...cnotes.querySelectorAll('line')], cnoteDots = [...cnotes.querySelectorAll('circle')];
+  let cnotesOn = -1;
+  function annotateCable() { // the same engraved labels as the switch, on the cut-away lead
+    const o = W > 760 ? cpart('notes', 'linear') : 0;
+    if (o !== cnotesOn) { cnotes.style.opacity = o.toFixed(3); cnotesOn = o; }
+    if (o === 0) return;
+    camera.updateMatrixWorld();
+    const s = clamp(W / 1440, 0.75, 1);
+    [[cable.anchors.braid, [40, -120], 1], [cable.anchors.pair, [-30, 125], -1], [cable.anchors.power, [-40, -120], -1]].forEach(([a, [dx, dy], side], i) => {
+      anchor.copy(a).project(camera);
+      const x = (anchor.x + 1) / 2 * W, y = (1 - anchor.y) / 2 * H, ex = x + dx * s, ey = y + dy * s;
+      const L = cnoteLines[i]; L.setAttribute('x1', x.toFixed(1)); L.setAttribute('y1', y.toFixed(1)); L.setAttribute('x2', ex.toFixed(1)); L.setAttribute('y2', ey.toFixed(1));
+      cnoteDots[i].setAttribute('cx', x.toFixed(1)); cnoteDots[i].setAttribute('cy', y.toFixed(1));
+      cnoteEls[i].style.transform = `translate(${(ex + 10 * side).toFixed(1)}px, ${ey.toFixed(1)}px) translate(${side > 0 ? 0 : -100}%, -50%)`;
+      const seen = x > W * 0.38 && x < W * 0.96 ? '1' : '0'; // a label whose part is behind the words or off frame waits
+      cnoteEls[i].style.opacity = L.style.opacity = cnoteDots[i].style.opacity = seen;
     });
   }
 
@@ -361,7 +394,7 @@ if (renderer) {
     let idx = 0; TEXT_RIG.forEach(([, t], i) => { if (p >= t) idx = i; });
     if (textIdx === -2 || idx === textIdx) return; textIdx = idx;
     groups.forEach((g, i) => { g.dataset.state = i === idx ? 'on' : i < idx ? 'after' : 'before'; g.inert = i !== idx; });
-    const here = idx === 2 ? 'switch' : 'key'; let past = true;
+    const here = idx >= 3 ? 'cable' : idx === 2 ? 'switch' : 'key'; let past = true;
     stopEls.forEach((li) => { const cur = li.dataset.stop === here; if (cur) past = false; li.toggleAttribute('aria-current', cur); if (cur) li.setAttribute('aria-current', 'step'); li.toggleAttribute('data-past', past && !cur); });
   }
   let shut = null;
@@ -383,7 +416,7 @@ if (renderer) {
   }
   function resize() {
     W = stage.clientWidth; H = stage.clientHeight;
-    renderer.setSize(W, H, false); camera.aspect = W / H; dirty = true; notesOn = -1; gaugeOn = -1;
+    renderer.setSize(W, H, false); camera.aspect = W / H; dirty = true; notesOn = -1; gaugeOn = -1; cnotesOn = -1;
   }
   addEventListener('resize', () => { resize(); clearTimeout(resize.t); resize.t = setTimeout(() => { split(); textIdx = -1; }, 150); });
   addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' || reduced) return; pointer.x = e.clientX / innerWidth - 0.5; pointer.y = e.clientY / innerHeight - 0.5; }, { passive: true });
@@ -410,15 +443,15 @@ if (renderer) {
     }
     if (!reduced) bar.style.transform = `scaleX(${sp.toFixed(4)})`;
     if (!reduced) setText(sp);
-    const op = old(sp);
+    const op = old(pre(sp)); fullP = sp;
     setShut(op);
     const dist = rig(sp, now);
     trailLive = pose(op, now, dist);
-    annotate(op);
+    annotate(op); annotateCable();
     measure(op);
     const r = 1 - seg(op, 0.18, 0.3); // how much of the room's light is in play; all of it fades on the push-in, no step in the key lighting
     lamp.intensity = LAMP_CD * r; bounce.intensity = 0.36 * r;
-    corner.setLight(r, now, reduced || pinnedP !== null); corner.group.visible = sp < P0 + 0.02; // past the hero the fog has closed over the corner
+    corner.setLight(r, now, reduced || pinnedP !== null); corner.group.visible = pre(sp) < P0 + 0.02; // past the hero the fog has closed over the corner
     key.intensity = 2.6 * (1 - r); fill.intensity = 0.55 * (1 - r); rim.intensity = 1.1 * (1 - 0.8 * r); hemi.intensity = 0.4 - 0.1 * r;
     scene.environmentIntensity = 1 - 0.45 * r;
     renderer.render(scene, camera);
@@ -442,6 +475,9 @@ if (renderer) {
   bakeShadows = () => { const d = rig(0, 0); pose(0, 0, d); lamp.intensity = LAMP_CD; renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); dirty = true; };
   bakeShadows();
   Promise.race([Promise.all(waiting), new Promise((r) => setTimeout(r, 6000))]).then(() => { root.classList.add('lit'); dirty = true; window.__loaded = true; });
+  // Shaders for the later stops compile in the background now, so the first scroll into them never stalls on it.
+  requestAnimationFrame(() => { cable.group.visible = true; const done = () => { cable.group.visible = false; dirty = true; };
+    (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).then(done, done); });
   running = false; start();
   document.fonts?.ready.then(() => {
     split(); if (textIdx !== -2) textIdx = -1; dirty = true;

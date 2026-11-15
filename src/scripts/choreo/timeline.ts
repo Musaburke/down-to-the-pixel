@@ -35,5 +35,23 @@ export const ROOM_SHOTS: Shot[] = [
   { id: 'desk-hold', t: 0.06, pos: [41, 24, 50], target: [5, -1, -4],   fov: 30, roll: 0, ease: 'linear' }, // dwell, slow creep
   { id: 'desk-in',   t: 0.13, pos: [17, 13, 21], target: [2, 0.2, -1.5], fov: 34, roll: 0, ease: 'inOut'  }, // closing on the M, on the line into the hero
 ];
-export const RIG: Shot[] = [...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease }))];
-export const TEXT_RIG: [string, number][] = TEXT.map(([id, t], i) => [id, i ? at(t) : 0]);
+// Cable stop (15 Nov 2026): the pinned travel grows from 250vh to 350vh. Everything above runs over the first
+// SPAN of it, so the approved shots keep exactly their scroll distance; `pre(p)` reads progress in those units.
+export const SPAN = 250 / 350;
+export const pre = (p: number): number => Math.min(1, p / SPAN);
+const after = (t: number): number => SPAN + t * (1 - SPAN); // 0..1 across the cable's share of the travel
+export const CABLE_SHOTS: Shot[] = [
+  { id: 'drop',       t: after(0.26), pos: [2.6, -2.2, 9.5],   target: [1.6, -3.9, 0],    fov: 26, roll: -2, ease: 'inOut'  }, // follows the bead down out of the switch onto the lead
+  { id: 'run',        t: after(0.46), pos: [7.6, -4.3, 5.2],   target: [12, -6.55, 0],     fov: 28, roll: 1,  ease: 'inOut'  }, // tracks along the braid towards the cut
+  { id: 'cable',      t: after(0.66), pos: [13.4, -4.7, 4.3],   target: [17.6, -6.4, 0],   fov: 30, roll: 3,  ease: 'inOut'  }, // low beside the cutaway, rolled a few degrees
+  { id: 'cable-hold', t: 1,           pos: [17.6, -4.75, 4.1],  target: [21.6, -6.8, 0],   fov: 30, roll: 3,  ease: 'linear' }, // tracks along the wire with the pulses
+];
+// Cable parts, in full progress p.
+export const CABLE_PARTS: Record<string, [number, number]> = {
+  beadDrop: [after(0.04), after(0.3)],  // bead leaves the contacts and falls to the cable
+  ride:     [after(0.26), 1],            // bead and pulses run along the data pair
+  notes:    [after(0.56), after(0.7)],   // engraved labels arrive with the camera
+};
+export const RIG: Shot[] = [...ROOM_SHOTS, ...SHOTS.map((s): Shot => ({ ...s, t: at(s.t), ease: s.id === 'hero' ? 'out' : s.ease })), ...CABLE_SHOTS]
+  .map((s): Shot => (CABLE_SHOTS.includes(s) ? s : { ...s, t: s.t * SPAN }));
+export const TEXT_RIG: [string, number][] = [...TEXT.map(([id, t], i): [string, number] => [id, i ? at(t) * SPAN : 0]), ['cable', after(0.22)]];
