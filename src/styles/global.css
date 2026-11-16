@@ -45,6 +45,22 @@ p { max-width: 34ch; text-wrap: pretty; }
 .pill:hover, .quiet:hover { background: var(--rule); }
 .pill:focus-visible, .quiet:focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
 .pill:active, .quiet:active { transform: scale(0.97); }
+/* The logo: a small keycap with a pixel for a legend. On hover the key goes down and its pixel lights, the whole story
+   in one gesture; clicking goes back to the start. */
+.brand { display: inline-flex; align-items: center; gap: 10px; padding-left: 12px; }
+.mark { flex: none; overflow: visible; }
+.mark .skirt { fill: #8a7347; }
+.mark .face { fill: #efe5d3; }
+.mark .dot { fill: #ae9357; }
+.mark .glow { fill: #ffe2a3; opacity: 0; }
+.mark .top { transition: transform 300ms var(--ease-out); }
+.mark .glow { transition: opacity 300ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .brand:hover .mark .top { transform: translateY(2.5px); }
+  .brand:hover .mark .glow { opacity: 1; }
+}
+.brand:focus-visible .mark .glow { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .mark .top { transition: none; } .brand:hover .mark .top { transform: none; } }
 
 /* Plain article by default: readable with no JS, no WebGL, or if Three fails to load. */
 .walk { position: relative; }

@@ -498,6 +498,11 @@ if (renderer) {
     jumping = true; cover.classList.add('on');
     setTimeout(() => { land(); requestAnimationFrame(() => requestAnimationFrame(() => { cover.classList.remove('on'); jumping = false; })); }, 230);
   };
+  document.querySelector('.brand')?.addEventListener('click', (e) => { // the logo goes back to the start, the same way
+    e.preventDefault();
+    const h1 = document.querySelector('h1'); h1?.setAttribute('tabindex', '-1');
+    jumpTo(0, () => h1?.focus({ preventScroll: true }));
+  });
   document.querySelector('.again')?.addEventListener('click', (e) => {
     e.preventDefault();
     const h1 = document.querySelector('h1'); h1?.setAttribute('tabindex', '-1');
