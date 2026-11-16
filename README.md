@@ -19,7 +19,7 @@ Six stops, one camera move from start to finish:
 
 It ends on the whole letter, with a cursor blinking after it.
 
-Along the way: every labelled part opens a short definition, every stop has a "Go deeper" panel, the stop list jumps anywhere, and the arrow keys step through the story one moment at a time. Every figure on the page has a source in [`docs/sources.md`](docs/sources.md).
+Along the way: every labelled part opens a short definition, every stop has a "Go deeper" panel, and the arrow keys step through the story one moment at a time. Every figure on the page has a source in [`docs/sources.md`](docs/sources.md).
 
 ![The ending: the letter M in warm pixels on a dark screen with a blinking cursor, beside "From a press to a pixel" and a keycap-shaped "Press it again" button](docs/ending.jpg)
 

@@ -93,9 +93,18 @@ if (renderer) {
     const load = (file, srgb) => new Promise((res) => texLoader.load(`/assets/${id}/${file}.webp`, (t) => {
       t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); if (srgb) t.colorSpace = THREE.SRGBColorSpace; res(t);
     }, undefined, () => res(null)));
-    waiting.push(Promise.all([load('diff', true), load('nor'), load('arm')]).then(([d, n, a]) => {
+    // The walnut loads at 2048 px first, so the scene shows sooner. Phones keep it (the board is never that close on a
+    // small screen); larger screens swap in the 4096 px photo once the scene is up, on every material using it.
+    const walnut = id === 'black_walnut_veneer_02';
+    waiting.push(Promise.all([load(walnut ? 'diff-2k' : 'diff', true), load('nor'), load('arm')]).then(([d, n, a]) => {
       if (!d) return; // the flat colour stays if the photo did not load
       mat.map = d;
+      if (walnut && innerWidth >= 900) setTimeout(() => load('diff', true).then((big) => {
+        if (!big) return;
+        renderer.initTexture(big);
+        scene.traverse((o) => [o.material].flat().forEach((m) => { if (m?.map === d) m.map = big; }));
+        dirty = true;
+      }), 1500);
       if (n) { mat.normalMap = n; mat.normalScale.set(nor, nor); }
       if (a && rough) { mat.roughnessMap = a; mat.roughness = mat.userData.rough ?? 1; } // ARM: green is roughness
       mat.needsUpdate = true;
@@ -269,12 +278,20 @@ if (renderer) {
   /* ---------- stop 3: the cable ---------- */
   const plugWood = physical({ color: 0xffffff, roughness: 1, clearcoat: 0.25, clearcoatRoughness: 0.42 }); // the plug's own material (the desk's is sunk into the dark by now), on the case's textures so nothing uploads twice
   Promise.all(waiting).then(() => { plugWood.map = woodMat.map; plugWood.normalMap = woodMat.normalMap; plugWood.roughnessMap = woodMat.roughnessMap; if (woodMat.normalMap) plugWood.normalScale.set(1.3, 1.3); plugWood.needsUpdate = true; });
-  const cable = buildCable({ sleeve: sleeveMat, wood: plugWood, brass: physical({ color: 0xd2bd8f, metalness: 0.7, roughness: 0.4, envMapIntensity: 2, normalMap: pbt, normalScale: new THREE.Vector2(0.03, 0.03) }) }); scene.add(cable.group); cable.group.visible = false;
+  // The later stops (cable, processor, graphics) are built after the desk's first frame, one per task, so the page
+  // shows sooner and no single build blocks for long. They are ready long before anyone can scroll to them.
+  let cable = null, cpu = null, gfx = null, pxCentre = null, beadFrom = null;
+  const buildLater = (then) => {
+    const step = (fn, next) => setTimeout(() => { fn(); next(); }, 16);
+    step(() => { cable = buildCable({ sleeve: sleeveMat, wood: plugWood, brass: physical({ color: 0xd2bd8f, metalness: 0.7, roughness: 0.4, envMapIntensity: 2, normalMap: pbt, normalScale: new THREE.Vector2(0.03, 0.03) }) }); scene.add(cable.group); cable.group.visible = false; },
+      () => step(() => { cpu = buildCpu(); scene.add(cpu.group); cpu.group.visible = false; },
+        () => step(() => {
+          gfx = buildGfx(); scene.add(gfx.group); gfx.group.visible = false;
+          pxCentre = gfx.lights[1].clone().setZ(gfx.lights[1].z - 0.24 * 0.36); beadFrom = pxCentre.clone().add(new THREE.Vector3(0, 1.4, 0.9)); // the last pixel, and where the message comes down from
+        }, () => { dirty = true; then(); })));
+  };
   const cableRim = new THREE.DirectionalLight(0xffd2a0, 0); cableRim.position.set(7, -6, -11); cableRim.target.position.set(0, -14, 0); scene.add(cableRim, cableRim.target); // warm edge light from behind, for the lead only
-  const cpu = buildCpu(); scene.add(cpu.group); cpu.group.visible = false;
-  const gfx = buildGfx(); scene.add(gfx.group); gfx.group.visible = false;
   const flashEl = document.querySelector('.flash'); let flashOn = -1;
-  const pxCentre = gfx.lights[1].clone().setZ(gfx.lights[1].z - 0.24 * 0.36), beadFrom = pxCentre.clone().add(new THREE.Vector3(0, 1.4, 0.9)); // the last pixel, and where the message comes down from
   const keyAtCpu = new THREE.Vector3(CHIP.x - 5, CHIP.y + 8, CHIP.z - 6), keyAtGfx = new THREE.Vector3(DRAW.x - 5, DRAW.y + 8.5, DRAW.z - 6.5); // the processor's key light goes down with the camera, hidden by the flash
   const cpuKey = new THREE.SpotLight(0xffd3a6, 0, 0, 0.55, 1, 2); cpuKey.position.copy(keyAtCpu); cpuKey.target.position.copy(CHIP); scene.add(cpuKey, cpuKey.target); // a warm key from behind and left of the processor: a pool of light that falls off, its glare kept out of the camera's line
   const cpart = (k, ease = 'inOut') => { const [a, b] = CABLE_PARTS[k], x = seg(fullP, a, b); return ease === 'linear' ? x : x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
@@ -314,6 +331,7 @@ if (renderer) {
     beadAt.lerp(v2, part(p, 'beadToA'));
     const j = part(p, 'beadJump');
     if (j > 0) { beadAt.x = lerp(v2.x, contactB.position.x + 0.05, j); beadAt.y = lerp(v2.y, contactB.position.y + 0.64, j) + Math.sin(j * Math.PI) * 0.3; }
+    if (cable && cpu && gfx) { // the later stops, once built
     if (fullP > SPAN) { // stop 3: the bead falls out of the switch onto the lead, then rides the data pair
       const drop = cpart('beadDrop'), ride = cpart('ride', 'linear');
       cable.beadAt(cable.uAt(Math.min(-2.3, camTgt.y - 0.9)), v1); // rides a little ahead of where the camera looks, so it leads the way down
@@ -341,6 +359,7 @@ if (renderer) {
     const fl = reduced ? 0 : Math.pow(Math.sin(Math.PI * seg(fullP, ...GFX_PARTS.flash)), 2) * 0.92;
     if (Math.abs(fl - flashOn) > 0.002) { flashEl.style.opacity = fl.toFixed(3); flashOn = fl; }
     if (cpu.group.visible) cpu.set(seg(fullP, ...CPU_PARTS.lid), seg(fullP, ...CPU_PARTS.wave), seg(fullP, ...CPU_PARTS.tracks) * 0.6 + (reduced || pinnedP !== null ? 0 : now * 0.000035), seg(fullP, CPU_PARTS.tracks[0], CPU_PARTS.tracks[0] + 0.03)); cableRim.intensity = 2.4 * seg(fullP, SPAN, SPAN + 0.08);
+    }
     const shimmer = reduced ? 1 : 1 + Math.sin(now * 0.004) * 0.05 + Math.sin(now * 0.0113) * 0.03;
     const flare = 1 + 0.6 * Math.sin(Math.PI * seg(p, 0.88, 0.97));
     const size = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.1 * shimmer * flare;
@@ -422,6 +441,7 @@ if (renderer) {
   const pxLabels = labels('.px-notes', [[-50, 70, -1], [0, 110, 1], [50, 70, 1]]);
   const gfxLabels = labels('.gfx-notes', [[-130, -60, -1], [10, 80, 1], [-10, -170, -1]]); // the later two in the dark below and above the plate
   function annotateLater() {
+    if (!gfx) return;
     cableLabels(cpart('notes', 'linear') * (1 - seg(fullP, CABLE_END + 0.02, CABLE_END + 0.04)), cable.anchors); // the plug's label stays until the plug is in its socket
     const lidK = seg(fullP, ...CPU_PARTS.lid);
     cpuLabels(seg(fullP, ...CPU_PARTS.notes) * (1 - seg(fullP, inGfx(0.1), inGfx(0.18))), cpu.anchors, (i) => (i === 0 ? 1 - seg(lidK, 0.15, 0.4) : seg(lidK, 0.7, 1))); // the lid's label leaves with it; the others wait for it to clear
@@ -642,8 +662,9 @@ if (renderer) {
   bakeShadows = () => { const d = rig(0, 0); pose(0, 0, d); lamp.intensity = LAMP_CD; renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); dirty = true; };
   bakeShadows();
   Promise.race([Promise.all(waiting), new Promise((r) => setTimeout(r, 6000))]).then(() => { root.classList.add('lit'); dirty = true; window.__loaded = true; });
-  // Shaders for the later stops compile in the background now, so the first scroll into them never stalls on it.
+  // Once the later stops are built, their shaders compile in the background, so the first scroll into them never stalls.
   // Their textures go up to the GPU too, one a frame, or the first frame that draws them stalls on the upload.
+  const prepareLater = () => {
   const uploads = new Set();
   [cable.group, cpu.group, gfx.group].forEach((g) => g.traverse((o) => [o.material].flat().forEach((m) => m && Object.values(m).forEach((v) => { if (v?.isTexture) uploads.add(v); }))));
   const queue = [...uploads], upload = () => { const t = queue.shift(); if (!t) return; renderer.initTexture(t); requestAnimationFrame(upload); };
@@ -659,12 +680,14 @@ if (renderer) {
   };
   requestAnimationFrame(() => { cable.group.visible = cpu.group.visible = gfx.group.visible = true; gfx.late.forEach((m) => { m.visible = true; }); const done = () => { cable.group.visible = cpu.group.visible = gfx.group.visible = false; gfx.late.forEach((m) => { m.visible = false; }); dirty = true; requestAnimationFrame(() => { warm(); upload(); }); };
     (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).then(done, done); });
+  };
+  requestAnimationFrame(() => buildLater(prepareLater)); // after the desk's first frame
   running = false; start();
   document.fonts?.ready.then(() => {
     split(); if (textIdx !== -2) textIdx = -1; dirty = true;
     // Redraw the legends once the grotesk has loaded, so the letters match the page.
     legends.forEach(({ dm, ch, ink }) => { const prev = dm.map; dm.map = legend(ch, ink); dm.needsUpdate = true; prev.dispose(); });
     board.redrawLegends();
-    gfx.redraw(); dirty = true; // the letter in the keycap's typeface
+    gfx?.redraw(); dirty = true; // the letter in the keycap's typeface (if it is built later, it is drawn with the font already loaded)
   });
 }
