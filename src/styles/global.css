@@ -200,8 +200,5 @@ button.note:focus-visible { outline: 2px solid var(--copper); outline-offset: 4p
 }
 @media (max-height: 560px) and (min-width: 761px) { .live .panel { padding: 24px 28px; } }
 
-.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; padding: 32px var(--gutter-r) calc(32px + env(safe-area-inset-bottom, 0px)) var(--gutter-l); background: var(--close); color: var(--muted); font-size: 16px; }
-.live .foot { padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
-@media (max-width: 760px) { .live .foot { padding-left: var(--gutter-l); padding-right: var(--gutter-r); } }
 
 .hud { position: fixed; right: var(--gutter-r); bottom: 16px; z-index: 30; background: var(--panel); color: var(--ink); padding: 10px 14px; font-size: 13px; line-height: 1.45; font-variant-numeric: tabular-nums; white-space: pre; }
