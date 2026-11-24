@@ -16,15 +16,15 @@
     "deploy": "npm run build && wrangler pages deploy dist --project-name down-to-the-pixel --branch main"
   },
   "dependencies": {
-    "astro": "^7.4.10",
-    "three": "0.186.1"
+    "astro": "^7.4.13",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@types/node": "^26.6.6",
-    "@types/three": "^0.186.0",
+    "@types/three": "^0.187.0",
     "playwright-core": "^1.65.0",
     "typescript": "^6.0.3",
-    "wrangler": "^4.162.0"
+    "wrangler": "^4.166.0"
   }
 }
